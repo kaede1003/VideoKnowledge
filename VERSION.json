@@ -1,0 +1,19 @@
+{
+  "repository": "video-knowledge-notebook",
+  "bundle_revision": "git-r5",
+  "packaged_on": "2026-11-07",
+  "extension": "0.10.0",
+  "server": "0.10.0",
+  "audio_protocol": 5,
+  "stage": "prototype-not-production-validated",
+  "runtime_changed_in_this_bundle": true,
+  "baseline_archive": "VideoKnowledge_Edge_v0.7.2_FULL.zip",
+  "baseline_sha256": "7fb007d5284d6f9387ba2c7b9cb8d7e0b1306a02cb57a64150162cdc1c4ef21d",
+  "diagnostics_archive": "VideoKnowledge_AI_Timeout_Diagnostics.zip",
+  "diagnostics_sha256": "ccd54a915001569dd864aec290ebd10f066960e3a97306cb20c83e4f6844402c",
+  "installer": "0.8.1",
+  "installation_base_archive": "VideoKnowledge_Git_Project_v0.8.0_git-r2.zip",
+  "installation_base_sha256": "b165df5fa6be3590f6e7de0279bb1245967445d66f92dc493b6747129921d311",
+  "previous_archive": "VideoKnowledge_Git_Project_v0.9.0_git-r4.zip",
+  "previous_sha256": "8aeefa49307293d0b564db9d5932577698a406eb300de7309774026218758634"
+}

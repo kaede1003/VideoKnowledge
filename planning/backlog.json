@@ -1,0 +1,591 @@
+{
+  "schema": 1,
+  "basis": "0.10.0/git-r5；删除过滤，新增字幕辅助/上下文/布局；真实验收另列",
+  "tasks": [
+    {
+      "id": "VK-001",
+      "priority": "P0",
+      "title": "归并Git基线、文档、统一测试和隐私边界",
+      "status": "done",
+      "depends_on": [],
+      "acceptance": [
+        "AC-029",
+        "AC-030",
+        "AC-031"
+      ],
+      "deliverable": "仓库结构、开发文档、QA报告与不含私有数据的源代码包",
+      "notes": "本次项目归档，不改变业务算法"
+    },
+    {
+      "id": "VK-002",
+      "priority": "P0",
+      "title": "收集真实长文超时分项计时",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-016"
+      ],
+      "deliverable": "目标机器的合成测试计时、模型加载/CPU-GPU状态及真实问题复现",
+      "notes": "先用已附CHECK_AI_TIMEOUT；不要反复重装模型"
+    },
+    {
+      "id": "VK-003",
+      "priority": "P0",
+      "title": "审阅并冻结持久长任务RFC",
+      "status": "todo",
+      "depends_on": [
+        "VK-002"
+      ],
+      "acceptance": [
+        "AC-016",
+        "AC-017",
+        "AC-018"
+      ],
+      "deliverable": "数据模型、生命周期、取消语义、迁移与回滚方案",
+      "notes": "docs/RFC_LONG_TASKS.md只是设计草案"
+    },
+    {
+      "id": "VK-004",
+      "priority": "P0",
+      "title": "实现流式适配和无进展期限",
+      "status": "todo",
+      "depends_on": [
+        "VK-003"
+      ],
+      "acceptance": [
+        "AC-016"
+      ],
+      "deliverable": "SSE/NDJSON适配、首字与分项计时、按模式输出预算",
+      "notes": "不能仅把100秒改成600秒；先构造测试"
+    },
+    {
+      "id": "VK-005",
+      "priority": "P0",
+      "title": "实现任务/分块检查点与幂等续跑",
+      "status": "todo",
+      "depends_on": [
+        "VK-003"
+      ],
+      "acceptance": [
+        "AC-017"
+      ],
+      "deliverable": "持久任务表、内容哈希、失败续跑、结果原子发布",
+      "notes": "修改输入、模式、模型、提示版本使检查点失效"
+    },
+    {
+      "id": "VK-006",
+      "priority": "P0",
+      "title": "长任务进度、重连和取消UI",
+      "status": "todo",
+      "depends_on": [
+        "VK-004",
+        "VK-005"
+      ],
+      "acceptance": [
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-024"
+      ],
+      "deliverable": "简洁进度视图、失败块续跑、取消及迟到结果保护",
+      "notes": "不要把调试信息堆满主界面"
+    },
+    {
+      "id": "VK-007",
+      "priority": "P0",
+      "title": "统一本项目模型资源调度",
+      "status": "todo",
+      "depends_on": [
+        "VK-003"
+      ],
+      "acceptance": [
+        "AC-018",
+        "AC-027"
+      ],
+      "deliverable": "摘要/翻译/采图的可观察队列和退让策略",
+      "notes": "不能声称能控制其他软件使用的Ollama任务"
+    },
+    {
+      "id": "VK-008",
+      "priority": "P0",
+      "title": "建立授权音频和人工参考稿评测集",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-008",
+        "AC-011"
+      ],
+      "deliverable": "受控测试集描述、逐句差异、CER/WER与关键语义错误报告",
+      "notes": "完整素材放private-data或外部受控目录，不提交Git"
+    },
+    {
+      "id": "VK-009",
+      "priority": "P0",
+      "title": "实际Windows Edge开始暂停停止验收",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-003",
+        "AC-004",
+        "AC-006",
+        "AC-007"
+      ],
+      "deliverable": "真实tabCapture测试记录和回归用例",
+      "notes": "模拟DOM通过不等于原生权限生命周期通过"
+    },
+    {
+      "id": "VK-010",
+      "priority": "P0",
+      "title": "验证实际Ollama保存/来源/推理路径",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-012"
+      ],
+      "deliverable": "本地无密钥、精确Origin授权和实际推理证据",
+      "notes": "禁止OLLAMA_ORIGINS=*、禁止替用户开放0.0.0.0"
+    },
+    {
+      "id": "VK-011",
+      "priority": "P0",
+      "title": "排查原音到文字的重复/遗漏根因",
+      "status": "todo",
+      "depends_on": [
+        "VK-008"
+      ],
+      "acceptance": [
+        "AC-005",
+        "AC-006",
+        "AC-008",
+        "AC-009"
+      ],
+      "deliverable": "相同原音的旧新对照、采样/边界/解码证据",
+      "notes": "过滤循环只能保护摘要，不能当作识别已修好"
+    },
+    {
+      "id": "VK-012",
+      "priority": "P1",
+      "title": "翻译及纠错多语种保真评测",
+      "status": "todo",
+      "depends_on": [
+        "VK-008"
+      ],
+      "acceptance": [
+        "AC-010",
+        "AC-011"
+      ],
+      "deliverable": "数字、否定、专名、推测、片段语境评测",
+      "notes": "仅凭更流畅不能判定正确"
+    },
+    {
+      "id": "VK-013",
+      "priority": "P1",
+      "title": "退休主题过滤并保证旧配置不再排除记录",
+      "status": "done",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-021",
+        "AC-022",
+        "AC-023"
+      ],
+      "deliverable": "UI/调度/模型入口已移除，旧存储惰性兼容",
+      "notes": "用户明确移除；原42项分类单测退休，12项不排除回归和新DOM检查代替"
+    },
+    {
+      "id": "VK-014",
+      "priority": "P1",
+      "title": "质量指标和人工核查体验回归",
+      "status": "todo",
+      "depends_on": [
+        "VK-011",
+        "VK-012",
+        "VK-013"
+      ],
+      "acceptance": [
+        "AC-010",
+        "AC-023",
+        "AC-024",
+        "AC-025"
+      ],
+      "deliverable": "风险理由、恢复与修订流程、兼容旧记录",
+      "notes": "不显示未经校准的正确率百分数"
+    },
+    {
+      "id": "VK-015",
+      "priority": "P1",
+      "title": "阶段摘要与写作结果一致性",
+      "status": "todo",
+      "depends_on": [
+        "VK-006"
+      ],
+      "acceptance": [
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "deliverable": "内容版本、时间范围、筛选快照和来源覆盖检查",
+      "notes": "新内容不自动重写旧文档；文字稿不得截尾"
+    },
+    {
+      "id": "VK-016",
+      "priority": "P2",
+      "title": "真实说话人区分性能与误差验证",
+      "status": "todo",
+      "depends_on": [
+        "VK-008",
+        "VK-009"
+      ],
+      "acceptance": [
+        "AC-019"
+      ],
+      "deliverable": "单/双/多人、短回应、抢话的实际评测",
+      "notes": "保持可选默认关，不确认真实身份"
+    },
+    {
+      "id": "VK-017",
+      "priority": "P2",
+      "title": "LoRA采图样本质量与时间关系验收",
+      "status": "todo",
+      "depends_on": [
+        "VK-009"
+      ],
+      "acceptance": [
+        "AC-020"
+      ],
+      "deliverable": "抽帧数量、去重、质量与TXT/JSON对齐检查",
+      "notes": "图像候选并非已经连续的视频LoRA数据"
+    },
+    {
+      "id": "VK-018",
+      "priority": "P1",
+      "title": "长时故障注入与崩溃恢复",
+      "status": "todo",
+      "depends_on": [
+        "VK-006",
+        "VK-007",
+        "VK-009"
+      ],
+      "acceptance": [
+        "AC-004",
+        "AC-006",
+        "AC-017",
+        "AC-027"
+      ],
+      "deliverable": "网络/磁盘/页面关闭/后台重启故障报告",
+      "notes": "区分已确认数据与未落盘尾音"
+    },
+    {
+      "id": "VK-019",
+      "priority": "P1",
+      "title": "目标平台依赖锁定与安装验证",
+      "status": "todo",
+      "depends_on": [
+        "VK-009"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-028"
+      ],
+      "deliverable": "实际Windows/Linux锁文件、依赖更新策略、安装测试",
+      "notes": "当前范围依赖不是完整可复现锁定"
+    },
+    {
+      "id": "VK-020",
+      "priority": "P1",
+      "title": "本地服务授权与隐私日志审查",
+      "status": "todo",
+      "depends_on": [
+        "VK-003"
+      ],
+      "acceptance": [
+        "AC-025",
+        "AC-026"
+      ],
+      "deliverable": "精确客户端授权方案、最小权限、敏感字段脱敏",
+      "notes": "现代码对本地服务允许合法格式扩展Origin；不能称已精确绑定"
+    },
+    {
+      "id": "VK-021",
+      "priority": "P1",
+      "title": "发布许可和第三方依赖审查",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-032"
+      ],
+      "deliverable": "所有者选择项目许可；依赖/模型清单与适用条款核验",
+      "notes": "不默认替用户开源或授权第三方素材"
+    },
+    {
+      "id": "VK-022",
+      "priority": "P1",
+      "title": "旧目录/扩展ID与数据迁移验收",
+      "status": "todo",
+      "depends_on": [
+        "VK-005",
+        "VK-019"
+      ],
+      "acceptance": [
+        "AC-002",
+        "AC-025"
+      ],
+      "deliverable": "备份回滚、不同目录ID变化与数据导出导入方案",
+      "notes": "当前核查JSON不应宣称已有自动完整恢复入口"
+    },
+    {
+      "id": "VK-023",
+      "priority": "P2",
+      "title": "目标硬件延迟和资源基准",
+      "status": "todo",
+      "depends_on": [
+        "VK-011",
+        "VK-007",
+        "VK-019"
+      ],
+      "acceptance": [
+        "AC-008",
+        "AC-018",
+        "AC-027"
+      ],
+      "deliverable": "i9/32GB/RTX5080的实际延迟、显存和并发报告",
+      "notes": "硬件只是目标，不预先填入性能数字"
+    },
+    {
+      "id": "VK-024",
+      "priority": "P1",
+      "title": "增强可公开的合成回归夹具",
+      "status": "todo",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-009",
+        "AC-010",
+        "AC-014",
+        "AC-021",
+        "AC-022"
+      ],
+      "deliverable": "无需真实用户笔记的长文本/多轮/异常流测试",
+      "notes": "标明合成数据，不能用它证明真实识别准确率"
+    },
+    {
+      "id": "VK-025",
+      "priority": "P1",
+      "title": "候选版发布门禁与回滚演练",
+      "status": "todo",
+      "depends_on": [
+        "VK-015",
+        "VK-018",
+        "VK-019",
+        "VK-020",
+        "VK-021",
+        "VK-022"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-027",
+        "AC-028",
+        "AC-030",
+        "AC-032"
+      ],
+      "deliverable": "候选版清单、人工签署、源码与安装包校验值",
+      "notes": "可选模块未验收则保持实验标签；不以全部单测绿代替成品验收"
+    },
+    {
+      "id": "VK-026",
+      "priority": "P1",
+      "title": "自动发言者与证据角色，无必填命名",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-033"
+      ],
+      "deliverable": "V0.8.0源码、测试及升级说明",
+      "notes": "声音模型/真实双人样本需目标验收；不猜姓名或性别"
+    },
+    {
+      "id": "VK-027",
+      "priority": "P1",
+      "title": "完整视频本地缓存与72小时清理",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-034"
+      ],
+      "deliverable": "V0.8.0源码、测试及升级说明",
+      "notes": "目标网站与Windows文件占用需验收；不读cookie、不删目录外内容"
+    },
+    {
+      "id": "VK-028",
+      "priority": "P1",
+      "title": "整理前上下文同音短语校验",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-035"
+      ],
+      "deliverable": "V0.8.0源码、测试及升级说明",
+      "notes": "本地候选与拼音检查不是原音核验；数字否定专名保护"
+    },
+    {
+      "id": "VK-029",
+      "priority": "P1",
+      "title": "移除无效在线字幕入口及采集路径",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-036"
+      ],
+      "deliverable": "V0.8.0源码、测试及升级说明",
+      "notes": "已有笔记和手动字幕文件导入保持"
+    },
+    {
+      "id": "VK-030",
+      "priority": "P0",
+      "title": "本地连接异常恢复与进程诊断",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-037"
+      ],
+      "deliverable": "V0.8.0源码、测试及升级说明",
+      "notes": "不将网络断开当作已证实崩溃；真实现场需日志"
+    },
+    {
+      "id": "VK-031",
+      "priority": "P1",
+      "title": "统一一键安装、下载诊断与续传验收",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-038"
+      ],
+      "deliverable": "INSTALL_ALL入口、流式拉取、已装模型检查、错误分类与本机安装报告",
+      "notes": "构造与回环HTTP测试已覆盖；真实Windows/WinGet/Ollama/CDN与代理DNS修复待验收。"
+    },
+    {
+      "id": "VK-032",
+      "priority": "P1",
+      "title": "页面听写显式授权与快捷键",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-039"
+      ],
+      "deliverable": "V0.9.0扩展、回归测试、输出约定与升级说明",
+      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。"
+    },
+    {
+      "id": "VK-033",
+      "priority": "P1",
+      "title": "同人发言合并与文字稿断句",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-040"
+      ],
+      "deliverable": "V0.9.0扩展、回归测试、输出约定与升级说明",
+      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。"
+    },
+    {
+      "id": "VK-034",
+      "priority": "P1",
+      "title": "五种成品文体与正文/核查分离",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-041"
+      ],
+      "deliverable": "V0.9.0扩展、回归测试、输出约定与升级说明",
+      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。"
+    },
+    {
+      "id": "VK-035",
+      "priority": "P1",
+      "title": "同时间字幕辅助校验",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-042"
+      ],
+      "deliverable": "0.10.0实现、构造回归、升级说明",
+      "notes": "代码和模拟测试完成；真实Edge/字幕/音频/LLM待目标验收"
+    },
+    {
+      "id": "VK-036",
+      "priority": "P1",
+      "title": "烧录字幕底部采样与资源退让",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-043"
+      ],
+      "deliverable": "0.10.0实现、构造回归、升级说明",
+      "notes": "代码和模拟测试完成；真实Edge/字幕/音频/LLM待目标验收"
+    },
+    {
+      "id": "VK-037",
+      "priority": "P1",
+      "title": "短片段拼接与跨片段同音推断",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-044"
+      ],
+      "deliverable": "0.10.0实现、构造回归、升级说明",
+      "notes": "代码和模拟测试完成；真实Edge/字幕/音频/LLM待目标验收"
+    },
+    {
+      "id": "VK-038",
+      "priority": "P1",
+      "title": "生成空白布局回归",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-045"
+      ],
+      "deliverable": "0.10.0实现、构造回归、升级说明",
+      "notes": "代码和模拟测试完成；真实Edge/字幕/音频/LLM待目标验收"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>视频知识笔记 · 设置</title><link rel="stylesheet" href="options.css"></head>
+<body><main><header><span class="eyebrow">VIDEO KNOWLEDGE / V0.7.0</span><h1>视频知识笔记 · 设置</h1>
+<p id="runtimeInfo" class="runtime-info">扩展版本 0.7.0 · 简洁面板与多种整理方式</p><p>常用操作在视频面板：开始听写 → 选择整理方式 → 生成 / 查看结果。此页仅用于模型与听写配置。</p></header>
+<section class="card"><h2>01 · 本地听写与中文记录</h2>
+<p>音频仅发送至本机 127.0.0.1:8765。已采集音频按序缓存，模型较慢时排队处理，不按队列长度丢弃。</p>
+<div class="grid"><div class="field"><label for="speechLanguage">视频语音语言</label><select id="speechLanguage"><option value="auto">自动识别（不保证混合语种；已知语言请指定）</option><option value="zh">中文</option><option value="en">英语</option><option value="ja">日语</option><option value="ko">韩语</option><option value="fr">法语</option><option value="de">德语</option><option value="es">西班牙语</option></select></div>
+<div class="field"><label for="textModel">本地纠错 / 翻译模型</label><input id="textModel" type="text" value="qwen2.5:3b" spellcheck="false"><small>此模型与视觉模型分开，只经本机 Ollama 调用。</small></div></div>
+<div class="field"><label for="chunkSeconds">识别窗口 / 延迟取舍</label><select id="chunkSeconds"><option value="12">12秒 · 默认，增加声音上下文</option><option value="18">18秒 · 更长上下文，延迟更高</option><option value="6">6秒 · 低延迟，短句易切断</option></select><small>这是采样窗口，还需重叠和模型计算时间。更长不保证更准确；停止后会继续处理尾段。</small></div>
+<label class="check"><input id="translate" type="checkbox" checked><span><strong>外语自动翻译成简体中文记录</strong><small>先保留原文，再翻译；可疑译文作为候选显示，不替代原文。未报警也不代表已核验，数字/否定等检查不能覆盖所有语义错误。</small></span></label>
+<label class="check"><input id="correct" type="checkbox"><span><strong>显示文本纠错建议（可选）</strong><small>单独生成建议，不自动覆盖原始识别或翻译来源。只有人工修订才改变用于整理的文本；AI没有重新听音。</small></span></label>
+<label class="check"><input id="diarize" type="checkbox"><span><strong>自动区分发言者（无需填写角色）</strong><small>开始听写后自动按声音分组；明确自述主持人/嘉宾时加角色标签，否则使用说话人编号，不猜真实姓名或性别。首次需运行 INSTALL_SPEAKER_MODEL.bat，模型不齐时保留文字并提示，不要求你手工分人。可能增加延迟，旧文字无法凭空补分组。</small></span></label>
+<div class="field"><label for="maxSpeakers">自动分组上限（高级）</label><select id="maxSpeakers"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option><option value="6">6人</option><option value="8" selected>自动估计，最多8组</option></select><small>这是上限，不强迫每个短片段凑齐人数；暂停继续沿用分组，重新开始的一轮独立分组。</small></div>
+<div class="field"><label for="hotwords">术语与专名提示</label><textarea id="hotwords" maxlength="600" rows="3" placeholder="例如：LoRA、梯度下降、量子纠缠、郁沐阳。填写视频中实际涉及的术语，不是要模型编造的内容。"></textarea></div>
+<div class="notice">模型尚未下载时，在 PowerShell 运行 <code>ollama pull qwen2.5:3b</code>。识别模型在 ASR_SETTINGS.bat 设置；新增 START_ACCURATE_ASR.bat 使用 small（默认CPU INT8），首次需下载。设置对下一轮听写生效。</div>
+<div class="actions"><button id="saveSpeech">保存听写与翻译设置</button><button id="diagnose" class="secondary">检测本地服务 / 模型</button></div><pre id="speechStatus" role="status" class="status"></pre>
+</section>
+<section class="card" id="summarySettings"><h2>02 · 阶段摘要与手动深度整理</h2>
+<div class="notice"><strong>修复“已填模型但仍提示未配置”</strong><p>未单独配置摘要时，自动复用已保存的本地文字模型。已保存的自定义接口、离线选择不会被自动覆盖。下面显示的是后台实际读取的配置。</p><pre id="effectiveConfig" class="status">正在读取后台配置…</pre></div>
+<div class="actions"><button id="useLocal">一键使用本地文字模型并验证</button></div><small>此按钮会明确切换摘要至本机 Ollama 并保存，不修改听写设置，也不删除笔记。</small>
+<p id="summarySaveState" class="save-state" role="status">正在读取保存状态…</p>
+<div class="field"><label for="preset">连接预设</label><select id="preset"><option value="ollama">本地 Ollama</option><option value="custom">自定义兼容接口（需主动授权）</option><option value="offline">离线：不调用摘要模型</option></select></div>
+<div class="field"><label for="endpoint">聊天接口地址</label><input id="endpoint" type="text" spellcheck="false" placeholder="http://127.0.0.1:11434/v1/chat/completions"><small>非本机接口必须使用 HTTPS。只有手动整理，或明确开启 AI 阶段摘要，才会发送文字。</small></div>
+<div class="grid"><div class="field"><label for="model">摘要模型名称</label><input id="model" type="text" placeholder="qwen2.5:3b" spellcheck="false"></div>
+<div class="field" id="apiKeyField"><label for="apiKey">API Key（仅自定义接口需要时填写）</label><div class="secret"><input id="apiKey" type="password" autocomplete="off" placeholder="仅在扩展内保存"><button id="show" type="button" class="secondary">显示</button></div></div></div>
+<div id="localOriginHelp" class="notice" hidden><strong>本机 Ollama：不需要 API Key</strong><p>HTTP 403 常见于扩展来源未获允许，并不代表缺密钥。下面的命令只追加本扩展来源，保留原有允许项，不开放所有网站或修改监听地址。</p><p>先停止使用 Ollama 的任务。在 PowerShell 粘贴执行命令，然后从系统托盘完整退出 Ollama，再从开始菜单启动；只关闭窗口或重载插件不够。</p><details><summary>查看本扩展的来源修复命令</summary><textarea id="originCommand" rows="8" readonly spellcheck="false" aria-label="仅允许本扩展的PowerShell命令"></textarea></details><div class="actions"><button id="copyOrigin" class="secondary">复制仅允许本扩展的命令</button></div><pre id="originCopyStatus" class="status" role="status"></pre></div>
+<div class="field"><label for="summaryMinutes">增量阶段摘要间隔</label><select id="summaryMinutes"><option value="2">每2分钟</option><option value="3">每3分钟</option><option value="5">每5分钟（默认）</option><option value="10">每10分钟</option><option value="15">每15分钟</option></select></div>
+<label class="check"><input id="autoSummary" type="checkbox"><span><strong>阶段摘要使用 AI 模型</strong><small>默认关闭：仅做本地代表性语句摘录。开启后定时归纳新增文字；全文深度整理仍只手动触发。</small></span></label>
+<div class="actions"><button id="save">保存摘要设置</button><button id="test" class="secondary">保存并验证实际推理</button><button id="cancelTest" class="secondary" hidden>取消本次验证</button></div><pre id="status" class="status" role="status"></pre>
+</section>
+<section class="card"><h2>03 · LoRA 图片筛选</h2><p>制定规则无需等待模型：原样保存多轮要求，冲突条件以最后一轮为准。实际图片判断使用本地 <code>qwen2.5vl:3b</code>。</p><div class="notice">安装视觉模型：<code>ollama pull qwen2.5vl:3b</code><br>采图前可点击上方“检测本地服务 / 模型”。已安装不代表已加载或运行速度足够；诊断不进行耗时推理。</div><p>仅使用获得训练授权的素材。未完成视觉判断的图片不会被冒充为已筛选样本。</p></section>
+<footer>音频缓存在本机，识别完成后释放旧音频；服务端已完成会话记录默认保留7天。扩展侧笔记另行保留。关闭浏览器会停止捕获，无法恢复从未录到的内容。</footer>
+</main><script src="local-origin.js"></script><script src="ai-config.js"></script><script src="options.js"></script></body></html>

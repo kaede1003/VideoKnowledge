@@ -1,0 +1,26 @@
+name: 开发任务
+description: 根据VK任务和AC验收条件推进，避免脱离基线重写。
+title: '[VK-xxx] '
+body:
+  - type: input
+    id: task
+    attributes:
+      label: VK任务编号与相关AC验收编号
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 交付范围、依赖和不做的事项
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 复现、预期与验证计划
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: 数据影响、迁移和回滚

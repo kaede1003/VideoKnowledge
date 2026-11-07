@@ -1,0 +1,33 @@
+name: 故障报告
+# GitHub issue forms use description, not the legacy Markdown about field.
+description: 提供版本、可复现步骤及脱敏错误，区分模型质量与软件故障。
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: '不要上传API Key、原始录音、整份个人笔记、会话token或浏览器用户目录。'
+  - type: input
+    id: versions
+    attributes:
+      label: 扩展 / 本地服务 / Edge / 模型版本
+      placeholder: '扩展0.7.2；服务0.7.1；填写实际Edge和模型'
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤与预期
+      description: '包含是否正在翻译/采图、第一次还是重复点击、时间范围；可用合成片段替代私人内容。'
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: 实际表现、错误码与脱敏日志
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已执行检查与证据边界
+      description: '标明真实音频/模型、模拟测试或仅截图；不要把猜测写成原因。'

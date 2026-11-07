@@ -1,0 +1,80 @@
+{
+  "started_utc": "2026-11-07T04:01:27.917392+00:00",
+  "scope": "Code, fixture unit tests, optional DOM tests; NOT real Edge/ASR/Ollama acceptance",
+  "python": "3.13.5",
+  "platform": "linux",
+  "all_passed": true,
+  "extension": "0.10.0",
+  "server": "0.10.0",
+  "installer": "0.8.1",
+  "javascript": {
+    "pass": 233,
+    "fail": 0
+  },
+  "python_tests": {
+    "pass": 232,
+    "fail": 0
+  },
+  "checks": [
+    {
+      "name": "repository",
+      "exit_code": 0,
+      "seconds": 0.771
+    },
+    {
+      "name": "js-syntax",
+      "exit_code": 0,
+      "seconds": 0.921
+    },
+    {
+      "name": "javascript",
+      "exit_code": 0,
+      "seconds": 0.773
+    },
+    {
+      "name": "python-compile",
+      "exit_code": 0,
+      "seconds": 0.722
+    },
+    {
+      "name": "python",
+      "exit_code": 0,
+      "seconds": 3.325
+    },
+    {
+      "name": "browser_caption_v0100",
+      "exit_code": 0,
+      "seconds": 7.321
+    },
+    {
+      "name": "browser_quality_v071",
+      "exit_code": 0,
+      "seconds": 5.937
+    },
+    {
+      "name": "browser_writing_v070",
+      "exit_code": 0,
+      "seconds": 11.204
+    },
+    {
+      "name": "browser_ai_v052",
+      "exit_code": 0,
+      "seconds": 3.881
+    },
+    {
+      "name": "browser_content_v052",
+      "exit_code": 0,
+      "seconds": 11.217
+    },
+    {
+      "name": "browser_v080",
+      "exit_code": 0,
+      "seconds": 4.177
+    },
+    {
+      "name": "browser_presentation_v090",
+      "exit_code": 0,
+      "seconds": 5.237
+    }
+  ]
+}

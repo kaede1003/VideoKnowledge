@@ -1,0 +1,75 @@
+{
+  "started_utc": "2026-11-06T16:03:50.141390+00:00",
+  "suite": "unit",
+  "scope": "Code, fixture unit tests, optional DOM tests; NOT real Edge/ASR/Ollama acceptance",
+  "python": "3.13.5",
+  "platform": "linux",
+  "all_passed": true,
+  "checks": [
+    {
+      "name": "repository",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/check_repo.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.719,
+      "log": "artifacts/checks/20261106T160350141390Z/repository.log"
+    },
+    {
+      "name": "js-syntax",
+      "command": [
+        "/opt/nvm/versions/node/v22.16.0/bin/node",
+        "scripts/check_js.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.819,
+      "log": "artifacts/checks/20261106T160350141390Z/js-syntax.log"
+    },
+    {
+      "name": "javascript",
+      "command": [
+        "/opt/nvm/versions/node/v22.16.0/bin/node",
+        "scripts/run_js_tests.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.62,
+      "log": "artifacts/checks/20261106T160350141390Z/javascript.log"
+    },
+    {
+      "name": "python-compile",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "compileall",
+        "-q",
+        "server",
+        "scripts",
+        "tests"
+      ],
+      "exit_code": 0,
+      "seconds": 0.769,
+      "log": "artifacts/checks/20261106T160350141390Z/python-compile.log"
+    },
+    {
+      "name": "python",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "seconds": 3.488,
+      "log": "artifacts/checks/20261106T160350141390Z/python.log"
+    }
+  ],
+  "python_tests": 199,
+  "javascript_tests": 194,
+  "new_installer_tests": 43
+}

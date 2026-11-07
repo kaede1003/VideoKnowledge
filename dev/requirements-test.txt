@@ -1,0 +1,8 @@
+# Test dependencies only. No model installation or download is performed by tests.
+# Bounds are inherited from the runtime baseline, NOT a reproducible lock file.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+websockets>=13,<17
+numpy>=1.26,<3
+httpx>=0.26,<1
+pillow>=10,<13

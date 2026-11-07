@@ -1,0 +1,16 @@
+{
+  "warning": "只按导出文字做规则重放，未重听原音；不是转写错误率，没有原始声学分数，未调用真实主题模型。",
+  "stats": {
+    "total": 667,
+    "included": 586,
+    "held": 40,
+    "excluded": 41,
+    "enabled": true
+  },
+  "categories": {
+    "quality": 40,
+    "filler": 40,
+    "promotion": 1
+  },
+  "elapsedMs": 33.803219
+}

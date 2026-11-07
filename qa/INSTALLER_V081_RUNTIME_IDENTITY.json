@@ -1,0 +1,177 @@
+{
+  "base_archive": "VideoKnowledge_Git_Project_v0.8.0_git-r2.zip",
+  "unchanged_files": [
+    {
+      "path": "extension/ai-config.js",
+      "sha256": "a5c27142ca1934ea776f50a3bd7dc813357b71345a7b020e81b325eeb1ba71d2"
+    },
+    {
+      "path": "extension/asr-background.js",
+      "sha256": "ad2b26b83ee22601eaa01adff3e586a400546fe465d669ec96363e3010a46f43"
+    },
+    {
+      "path": "extension/audio-processor.js",
+      "sha256": "7b53740336e39244c2dc4bed8c8e7339bfc790036d34105048dc156a8253b7aa"
+    },
+    {
+      "path": "extension/background.js",
+      "sha256": "9aaca88fc477c3b2f39779a8b3ff478a0a378b092a9522881d5ac94948eb6572"
+    },
+    {
+      "path": "extension/cache-background.js",
+      "sha256": "0258fe24c9f99ee2bc582ea1a43dfa16e591fd00f8dc10204973bee175c685d5"
+    },
+    {
+      "path": "extension/cache.css",
+      "sha256": "04924ebb675dd00e29c856eed7587cb9605fcce19302a850bed27ec11deff3c8"
+    },
+    {
+      "path": "extension/cache.html",
+      "sha256": "89304e990d0bc1dd03b1dd1cf111c880e9fed4f1142d16dd8456e279d66d0d41"
+    },
+    {
+      "path": "extension/cache.js",
+      "sha256": "c5f731f9310d4ae075f62a6929a25834caf36ae062278a8fb000e188d1ec0e04"
+    },
+    {
+      "path": "extension/content.js",
+      "sha256": "372d9bf09309d883df9810f061836ee27bf62cb269e68d476e9f426943e9e83f"
+    },
+    {
+      "path": "extension/context-review.js",
+      "sha256": "6f2d3a0ea06af41ccd51103d50392d9fb274084fd9439c73f8f74b8e8b0c377d"
+    },
+    {
+      "path": "extension/core.js",
+      "sha256": "6ae4d5f0c6b4e3564f61eda459ff1af87d0159dbbc43ca9241c8ab92e0216c9e"
+    },
+    {
+      "path": "extension/icons/icon128.png",
+      "sha256": "9cdce0d96a4e33029285e1626089467c5fcb91fc6362046dd26c7165d24633da"
+    },
+    {
+      "path": "extension/icons/icon16.png",
+      "sha256": "5c9fcc0f8980ba3c01c82bd506996ec1099462b43ea6ee3a447d391b66aac059"
+    },
+    {
+      "path": "extension/icons/icon32.png",
+      "sha256": "4c3785895a7e216e5bec0189ed6cde6d754ba0aaa1951a79a6526e5cf452e5e0"
+    },
+    {
+      "path": "extension/icons/icon48.png",
+      "sha256": "cc011131e5af61070be6c89d3ec709c70442c6ea98eb65c460924da92e8e8886"
+    },
+    {
+      "path": "extension/local-origin.js",
+      "sha256": "d25d21d95bb5161dcdf78f1a4e14572b1109cf212652793c3693981bc0133094"
+    },
+    {
+      "path": "extension/lora-background.js",
+      "sha256": "9ce493ba9c2ac44e8cb88da1157899e57795999239544a4e4dea32e217dff412"
+    },
+    {
+      "path": "extension/manifest.json",
+      "sha256": "43d23acb5fd406b92199ac3b9d76163832c3c584061ca70ceb272e3800c6c2ca"
+    },
+    {
+      "path": "extension/offscreen.html",
+      "sha256": "afa1a7feb036ce94b49689f3017f6e8f55d32a4b111e023bc5037a1e340e1977"
+    },
+    {
+      "path": "extension/offscreen.js",
+      "sha256": "a05f997a643c7744a74287c53f9eb5d5f21099708a2796e6be2fbe81eefa5c3e"
+    },
+    {
+      "path": "extension/options.css",
+      "sha256": "ed7fb74b68228dfbadba9f6d1a38f2f0128e3f7683ff7c2c1ccd0a8b3d6366e4"
+    },
+    {
+      "path": "extension/options.html",
+      "sha256": "cc39d849b667eb09d467105ff10e158e6ffc31a3810d6ff20a2ee6dedebc9355"
+    },
+    {
+      "path": "extension/options.js",
+      "sha256": "6fdf08a048e789c22ec9554933ebb88a4fce76c84a7c4ef61c5e3c6c910ca596"
+    },
+    {
+      "path": "extension/stream-client.js",
+      "sha256": "0e8acc1bffa9ac9be67584601bd3800e1d9ac6478ea7b8063b8f454e9262fc06"
+    },
+    {
+      "path": "server/__init__.py",
+      "sha256": "0013d4ada9c9c1b00a4f82e3e2db8d512dfb147c79fb16e2d7742bbdc0cd5c67"
+    },
+    {
+      "path": "server/app.py",
+      "sha256": "5b3b5b5bb6f36a93202bda1822abb21059f1700218ed71cf8215ad85ce6bc6f2"
+    },
+    {
+      "path": "server/asr_core.py",
+      "sha256": "7aa677d10353ab6fc5834cb5dbe6de11bd2f3a3a2a68f861779b65c8223ee158"
+    },
+    {
+      "path": "server/context_review.py",
+      "sha256": "ee808444c2d2dfc015ab368f29083788eb3cf795b6e14dda5c2cbf1844f52c84"
+    },
+    {
+      "path": "server/logging.json",
+      "sha256": "a438b30bd4ae83e637a2642f96cd5722bab97e8e6b75957927811dc00b35a922"
+    },
+    {
+      "path": "server/lora_core.py",
+      "sha256": "2b3b6042ebe9febe00a932f5a6f038ecfc8e2c7c52b305751522672150688662"
+    },
+    {
+      "path": "server/lora_service.py",
+      "sha256": "3ccc492b02e5e50df5175e9924d2b8f755392683d3a6138e4f3507dbacc75b15"
+    },
+    {
+      "path": "server/recognition.py",
+      "sha256": "20c4c0786aa4598f5741b18a1c207e1b895e22739e67a47b437354a12fd6743c"
+    },
+    {
+      "path": "server/requirements-dev.txt",
+      "sha256": "d7beb9b0fcbd9a75c319c0276eaab3501ece35b3e4b0ac91c1e28f89bea08e33"
+    },
+    {
+      "path": "server/requirements-optional.txt",
+      "sha256": "d2482d3e1eda67274d4b7d4fa540600dea43dbca6658c9e364eb4c6a1ee03640"
+    },
+    {
+      "path": "server/requirements-speaker.txt",
+      "sha256": "1e99059dc6fcb18e0d113249925857df75fcd753a342a5bc476f3b1b9a4dc908"
+    },
+    {
+      "path": "server/requirements.txt",
+      "sha256": "a6db2f8e4587c1eb133c25b3576102f102a5b2aaba7029be80343adb04fa4470"
+    },
+    {
+      "path": "server/speaker.py",
+      "sha256": "0c8253662469cbebc7192dfd9e5973816f96f05869b6e1ef4251ceb7e64ec74e"
+    },
+    {
+      "path": "server/stream_protocol.py",
+      "sha256": "0508e7c0ec07d0ec35a40c61b15f8f23b063efec6fb21d21405e06de5ef42a1b"
+    },
+    {
+      "path": "server/stream_service.py",
+      "sha256": "56909423bd5917987c4d19c46634f1b791bbd0604191b754b3da77980f5e07e8"
+    },
+    {
+      "path": "server/stream_store.py",
+      "sha256": "3f5751c67a463f29d4d6e6a70dd2a8a645d6d61fb9d1d490d7b003f70fcc8bf3"
+    },
+    {
+      "path": "server/text_enrichment.py",
+      "sha256": "97ad7ad9cdd39652496f81f5732324315ed2fa04c02988517ce898a90c0927d5"
+    },
+    {
+      "path": "server/video_cache.py",
+      "sha256": "b34c0abb7c0032d854c87f7eeb8cf06fd0377e9a8bebacc6563a43652b54dcd3"
+    },
+    {
+      "path": "server/video_download_worker.py",
+      "sha256": "fe1449e79c62e5b9bb191ce9c787432b469ae6b35988ccc4ba45ae5a15aedcc3"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "video-knowledge-notebook",
+  "version": "0.10.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Local speech notes with reversible subtitle evidence, contextual phrase review and compact reader.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node scripts/run_js_tests.cjs",
+    "check:js": "node scripts/check_js.cjs"
+  }
+}

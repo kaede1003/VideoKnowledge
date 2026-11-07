@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "视频知识笔记 · Video Knowledge Notebook",
+  "short_name": "视频知识笔记",
+  "version": "0.10.0",
+  "description": "本地听写与字幕对照校对；完整记录，按发言合并，输出知识、剧本、小说或文字稿。",
+  "permissions": [
+    "activeTab",
+    "offscreen",
+    "scripting",
+    "storage",
+    "tabCapture",
+    "downloads",
+    "unlimitedStorage",
+    "desktopCapture"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://*.youtube.com/*",
+    "https://www.bilibili.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "开始 / 停止当前视频听写（Alt+Shift+V）"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://www.bilibili.com/*",
+        "https://vimeo.com/*"
+      ],
+      "js": [
+        "core.js",
+        "caption-review.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+V",
+        "mac": "Alt+Shift+V"
+      },
+      "description": "开始或停止当前视频听写"
+    }
+  }
+}

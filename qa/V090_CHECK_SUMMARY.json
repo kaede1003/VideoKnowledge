@@ -1,0 +1,77 @@
+{
+  "scope": "Code, fixture unit tests, optional DOM tests; NOT real Edge/ASR/Ollama acceptance",
+  "extension": "0.9.0",
+  "server": "0.8.0",
+  "installer": "0.8.1",
+  "all_passed": true,
+  "python": "3.13.5",
+  "platform": "linux",
+  "checks": [
+    {
+      "name": "repository",
+      "exit_code": 0,
+      "seconds": 1.171
+    },
+    {
+      "name": "js-syntax",
+      "exit_code": 0,
+      "seconds": 1.271
+    },
+    {
+      "name": "javascript",
+      "exit_code": 0,
+      "seconds": 1.069
+    },
+    {
+      "name": "python-compile",
+      "exit_code": 0,
+      "seconds": 1.073
+    },
+    {
+      "name": "python",
+      "exit_code": 0,
+      "seconds": 4.686
+    },
+    {
+      "name": "browser_filter_v072",
+      "exit_code": 0,
+      "seconds": 9.278
+    },
+    {
+      "name": "browser_quality_v071",
+      "exit_code": 0,
+      "seconds": 6.859
+    },
+    {
+      "name": "browser_writing_v070",
+      "exit_code": 0,
+      "seconds": 12.438
+    },
+    {
+      "name": "browser_ai_v052",
+      "exit_code": 0,
+      "seconds": 5.596
+    },
+    {
+      "name": "browser_content_v052",
+      "exit_code": 0,
+      "seconds": 11.665
+    },
+    {
+      "name": "browser_v080",
+      "exit_code": 0,
+      "seconds": 5.291
+    },
+    {
+      "name": "browser_presentation_v090",
+      "exit_code": 0,
+      "seconds": 6.241
+    }
+  ],
+  "javascript_tests": 235,
+  "python_tests": 199,
+  "dom_suites": 7,
+  "native_extension_attempt": "skipped: service worker not started by environment; not counted as passed",
+  "real_models_tested": false,
+  "target_windows_edge_tested": false
+}

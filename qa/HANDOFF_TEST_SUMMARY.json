@@ -1,0 +1,115 @@
+{
+  "bundle_revision": "git-r2",
+  "version": "0.8.0",
+  "created_utc": "2026-11-06T14:32:16.984637+00:00",
+  "python": "3.13.5",
+  "node": "v22.16.0",
+  "platform": "linux",
+  "javascript": {
+    "passed": 194,
+    "failed": 0,
+    "skipped": 0
+  },
+  "python_tests": {
+    "passed": 156,
+    "failed": 0
+  },
+  "unit_suite": {
+    "all_passed": true,
+    "checks": [
+      {
+        "name": "repository",
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "scripts/check_repo.py"
+        ],
+        "exit_code": 0,
+        "seconds": 1.221
+      },
+      {
+        "name": "js-syntax",
+        "command": [
+          "/opt/nvm/versions/node/v22.16.0/bin/node",
+          "scripts/check_js.cjs"
+        ],
+        "exit_code": 0,
+        "seconds": 0.972
+      },
+      {
+        "name": "javascript",
+        "command": [
+          "/opt/nvm/versions/node/v22.16.0/bin/node",
+          "scripts/run_js_tests.cjs"
+        ],
+        "exit_code": 0,
+        "seconds": 0.872
+      },
+      {
+        "name": "python-compile",
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "compileall",
+          "-q",
+          "server",
+          "scripts",
+          "tests"
+        ],
+        "exit_code": 0,
+        "seconds": 1.02
+      },
+      {
+        "name": "python",
+        "command": [
+          "/opt/pyvenv/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests",
+          "-p",
+          "test_*.py",
+          "-v"
+        ],
+        "exit_code": 0,
+        "seconds": 3.077
+      }
+    ]
+  },
+  "browser_dom": {
+    "completed_workflows": 6,
+    "combined_tool_run_completed": false,
+    "evidence": "Four PASS exits from runner, standalone stop and v080 workflows exited 0; APIs/models synthetic"
+  },
+  "local_transport": {
+    "created_utc": "2026-11-06T14:27:59.783347+00:00",
+    "passed": [
+      "real_http_health",
+      "real_websocket_hello_ping",
+      "duplicate_connection_retryable",
+      "durable_silence_ack_and_duplicate",
+      "finish_and_reconnect_replay",
+      "user_diagnostic_health_and_ws",
+      "no_whisper_weights_loaded",
+      "owned_child_exit_code_logged"
+    ],
+    "scope": "Linux real transport + SQLite with synthetic silence. No Windows, website, speech/role, download or model-quality claim."
+  },
+  "staged_guard": {
+    "clean_index_passed": true,
+    "force_added_private_files_blocked": true,
+    "clean_again_passed": true,
+    "remote_operations": false
+  },
+  "not_run": [
+    "Target Windows Edge/native capture",
+    "Actual speech/speaker/Ollama inference",
+    "Real website download/playback",
+    "Native model crash isolation",
+    "Remote GitHub CI"
+  ],
+  "known_unfixed": [
+    "100-second nonstream long-writing request and durable generation resume"
+  ],
+  "prior_baseline": "qa/BASELINE_TEST_REPORT.md is historical git-r1, not current counts"
+}

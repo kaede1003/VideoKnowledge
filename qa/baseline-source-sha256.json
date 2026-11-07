@@ -1,0 +1,170 @@
+{
+  "description": "Immutable original 0.7.2/0.7.1 runtime inventory. New development may diverge; update VERSION/CHANGELOG instead of claiming these remain identical.",
+  "files": [
+    {
+      "path": "extension/ai-config.js",
+      "sha256": "a5c27142ca1934ea776f50a3bd7dc813357b71345a7b020e81b325eeb1ba71d2",
+      "bytes": 5497
+    },
+    {
+      "path": "extension/asr-background.js",
+      "sha256": "7c5e485d7dc9ca7b991dedf891cba272035a22d1475c365e55b71879450ec139",
+      "bytes": 10002
+    },
+    {
+      "path": "extension/audio-processor.js",
+      "sha256": "7b53740336e39244c2dc4bed8c8e7339bfc790036d34105048dc156a8253b7aa",
+      "bytes": 1826
+    },
+    {
+      "path": "extension/background.js",
+      "sha256": "44820551d494c547549b7b680fb6c17a50fdffe2c1df4afc925f3b7930cdfbce",
+      "bytes": 24258
+    },
+    {
+      "path": "extension/content.js",
+      "sha256": "66705e25270dae9c20ca4ffc84bb9ca4ac252b49f43d872fc29808ebb8801f19",
+      "bytes": 79831
+    },
+    {
+      "path": "extension/core.js",
+      "sha256": "e7b021b3df7e9f619afddb602e125846ec95dae45b4fe81f8337dce784162544",
+      "bytes": 48853
+    },
+    {
+      "path": "extension/icons/icon128.png",
+      "sha256": "9cdce0d96a4e33029285e1626089467c5fcb91fc6362046dd26c7165d24633da",
+      "bytes": 5425
+    },
+    {
+      "path": "extension/icons/icon16.png",
+      "sha256": "5c9fcc0f8980ba3c01c82bd506996ec1099462b43ea6ee3a447d391b66aac059",
+      "bytes": 756
+    },
+    {
+      "path": "extension/icons/icon32.png",
+      "sha256": "4c3785895a7e216e5bec0189ed6cde6d754ba0aaa1951a79a6526e5cf452e5e0",
+      "bytes": 1416
+    },
+    {
+      "path": "extension/icons/icon48.png",
+      "sha256": "cc011131e5af61070be6c89d3ec709c70442c6ea98eb65c460924da92e8e8886",
+      "bytes": 2329
+    },
+    {
+      "path": "extension/local-origin.js",
+      "sha256": "d25d21d95bb5161dcdf78f1a4e14572b1109cf212652793c3693981bc0133094",
+      "bytes": 1851
+    },
+    {
+      "path": "extension/lora-background.js",
+      "sha256": "9ce493ba9c2ac44e8cb88da1157899e57795999239544a4e4dea32e217dff412",
+      "bytes": 5092
+    },
+    {
+      "path": "extension/manifest.json",
+      "sha256": "058029cadfb2825ac256137ad01f87f9d3fcc72a6bbdac3ade4b9795979d47b0",
+      "bytes": 1483
+    },
+    {
+      "path": "extension/offscreen.html",
+      "sha256": "afa1a7feb036ce94b49689f3017f6e8f55d32a4b111e023bc5037a1e340e1977",
+      "bytes": 217
+    },
+    {
+      "path": "extension/offscreen.js",
+      "sha256": "a05f997a643c7744a74287c53f9eb5d5f21099708a2796e6be2fbe81eefa5c3e",
+      "bytes": 19190
+    },
+    {
+      "path": "extension/options.css",
+      "sha256": "ed7fb74b68228dfbadba9f6d1a38f2f0128e3f7683ff7c2c1ccd0a8b3d6366e4",
+      "bytes": 2819
+    },
+    {
+      "path": "extension/options.html",
+      "sha256": "f53828bd97270ebc413af5b9fbd5ebd08041c627f5f7a4daea61594fbb27ce00",
+      "bytes": 8619
+    },
+    {
+      "path": "extension/options.js",
+      "sha256": "a2aef671f5347ef1aaf0f5f2626508fc786229fc238290f8f3221ae79affca7f",
+      "bytes": 12480
+    },
+    {
+      "path": "extension/stream-client.js",
+      "sha256": "fe5cfdb4739450181640537c88da94301dd808fe5c4ff64a34d8bacf9e4a3b2c",
+      "bytes": 10411
+    },
+    {
+      "path": "server/__init__.py",
+      "sha256": "0013d4ada9c9c1b00a4f82e3e2db8d512dfb147c79fb16e2d7742bbdc0cd5c67",
+      "bytes": 74
+    },
+    {
+      "path": "server/app.py",
+      "sha256": "4b7104ce6342d0444993aaf5adec4d489102086ddc7833f174c388f4115afc65",
+      "bytes": 3107
+    },
+    {
+      "path": "server/asr_core.py",
+      "sha256": "7aa677d10353ab6fc5834cb5dbe6de11bd2f3a3a2a68f861779b65c8223ee158",
+      "bytes": 5560
+    },
+    {
+      "path": "server/lora_core.py",
+      "sha256": "2b3b6042ebe9febe00a932f5a6f038ecfc8e2c7c52b305751522672150688662",
+      "bytes": 4318
+    },
+    {
+      "path": "server/lora_service.py",
+      "sha256": "3ccc492b02e5e50df5175e9924d2b8f755392683d3a6138e4f3507dbacc75b15",
+      "bytes": 16691
+    },
+    {
+      "path": "server/recognition.py",
+      "sha256": "20c4c0786aa4598f5741b18a1c207e1b895e22739e67a47b437354a12fd6743c",
+      "bytes": 5588
+    },
+    {
+      "path": "server/requirements-dev.txt",
+      "sha256": "d7beb9b0fcbd9a75c319c0276eaab3501ece35b3e4b0ac91c1e28f89bea08e33",
+      "bytes": 35
+    },
+    {
+      "path": "server/requirements-speaker.txt",
+      "sha256": "1e99059dc6fcb18e0d113249925857df75fcd753a342a5bc476f3b1b9a4dc908",
+      "bytes": 96
+    },
+    {
+      "path": "server/requirements.txt",
+      "sha256": "a6db2f8e4587c1eb133c25b3576102f102a5b2aaba7029be80343adb04fa4470",
+      "bytes": 122
+    },
+    {
+      "path": "server/speaker.py",
+      "sha256": "f9cfa1bc89db5fd7e28ae3201e9ce7522e64261fd6ed1c39570c646ea995a988",
+      "bytes": 10795
+    },
+    {
+      "path": "server/stream_protocol.py",
+      "sha256": "0508e7c0ec07d0ec35a40c61b15f8f23b063efec6fb21d21405e06de5ef42a1b",
+      "bytes": 1766
+    },
+    {
+      "path": "server/stream_service.py",
+      "sha256": "86eed243c34d42ce94e34fea6971c3dce1c7dfd14f11aa6e3568a154fc40734c",
+      "bytes": 7315
+    },
+    {
+      "path": "server/stream_store.py",
+      "sha256": "3f5751c67a463f29d4d6e6a70dd2a8a645d6d61fb9d1d490d7b003f70fcc8bf3",
+      "bytes": 17158
+    },
+    {
+      "path": "server/text_enrichment.py",
+      "sha256": "97ad7ad9cdd39652496f81f5732324315ed2fa04c02988517ce898a90c0927d5",
+      "bytes": 9787
+    }
+  ]
+}

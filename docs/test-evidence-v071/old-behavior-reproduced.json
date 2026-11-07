@@ -1,0 +1,17 @@
+{
+  "note": "Synthetic regression examples, NOT user-video quotes.",
+  "old_translation_checks": [
+    {
+      "source": "It is not true.",
+      "candidate": "这是真的。",
+      "old_accepted": true
+    },
+    {
+      "source": "It might be a mistake.",
+      "candidate": "这就是一个错误。",
+      "old_accepted": true
+    }
+  ],
+  "old_caption_result": "x 3",
+  "new_caption_expected": "x < 5 and y > 3"
+}

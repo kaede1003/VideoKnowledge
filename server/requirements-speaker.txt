@@ -1,0 +1,2 @@
+# Optional CPU-only speaker diarization, isolated from Whisper and Ollama.
+sherpa-onnx==1.12.34

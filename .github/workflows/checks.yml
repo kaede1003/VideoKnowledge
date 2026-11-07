@@ -1,0 +1,62 @@
+name: Source and fixture checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install fixture-test dependencies (no models)
+        run: python -m pip install -r dev/requirements-test.txt
+      - name: Planning sources match rendered docs
+        run: python scripts/render_planning.py --check
+      - name: Full fixture unit suite
+        run: python scripts/run_checks.py --suite unit
+      - name: Review all tracked files
+        run: python scripts/check_repo.py --staged
+      - name: Retain synthetic test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixture-checks-${{ matrix.os }}
+          path: artifacts/checks/
+          if-no-files-found: warn
+          retention-days: 7
+  browser-dom:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r dev/requirements-browser.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Real DOM with simulated extension and models (not native Edge acceptance)
+        env:
+          VKN_CHROMIUM: playwright
+        run: python scripts/run_checks.py --suite browser
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-dom-evidence
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,7 @@
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+websockets>=13,<17
+faster-whisper>=1.1,<2
+numpy>=1.26,<3
+httpx>=0.26,<1
+pillow>=10,<13
