@@ -1,3 +1,5 @@
+> 0.10.1补充：caption-buffer.js在offscreen保存有限易失字幕裁剪，推理中仍采样；caption_review.py英文整词校验；生成前复核已存证据。文字稿短单元→逐条校验→原文锚点重试→还原发言。见UPGRADE_V0101.md。
+
 > 0.10.0补充：caption-review.js/content.js管理时间对齐证据，caption-background.js向本机路由，offscreen.js只裁剪已授权视频；server/caption_review.py本机视觉读取与局部同音守卫。无关内容过滤已退休，旧字段只保留不执行。详见UPGRADE_V0100.md。下面历史架构若冲突以当前状态为准。
 
 > 下文主干为git-r1历史架构；V0.8.0变更与当前边界见 [UPGRADE_V080.md](UPGRADE_V080.md)。在线字幕自动采集已移除。新增server/video_cache.py管理下载/TTL，server/context_review.py负责短语规则校验，stream_service.py增加监督，启动器run_local_service.py收集日志；均不替代长文RFC。

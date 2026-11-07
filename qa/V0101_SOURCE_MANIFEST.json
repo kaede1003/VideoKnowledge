@@ -1,0 +1,165 @@
+{
+  "version": "0.10.1",
+  "base": "0.10.0/git-r5",
+  "removed_files": [],
+  "changed_source_files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "c2d60d5da75086d6bb47a78a8880be79fce1dd1ce39596d5ce8e720986df8cf8"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "2c1fa999c0990057625076bfeaef080fb7c38ba37d2c388fca63fe6cdeedf4bd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "789583c8de813a851a8c9e0ac9d0c3ed38b6c8691adfa183256769952e4120e4"
+    },
+    {
+      "path": "START_LOCAL_ASR.bat",
+      "sha256": "f66db9b4fd37fcf8d027d5c4364eb891100260ec3a9aadbac392464eb7e8e6c9"
+    },
+    {
+      "path": "VERSION.json",
+      "sha256": "9a23deb449c53756ed0428e225fd1a4c917b36cce0bcb041ddf556b756490114"
+    },
+    {
+      "path": "docs/ACCEPTANCE.md",
+      "sha256": "62b4af44fff170f5cba5aa5f7a91b5dd5aa3a57677b8b9404d321e58131088fb"
+    },
+    {
+      "path": "docs/ARCHITECTURE_CURRENT.md",
+      "sha256": "6e9bfbbbc2fc3f60a77b4cd9c9356c2b16af166cb8fc9df20e61df4da26bc943"
+    },
+    {
+      "path": "docs/KNOWN_ISSUES.md",
+      "sha256": "c2ad21fce55934324fe26078af8b8033ece5fabad3653b134bdd0837348600c2"
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "e5001f12280fba06f77856aece8f1b39bf6ed28396bdabbc0d208bddb517b5e9"
+    },
+    {
+      "path": "docs/STATUS.md",
+      "sha256": "aee34944a310f0f067b0e2645fe415f2f9ee274606efc17cd348cd8254232465"
+    },
+    {
+      "path": "docs/UPGRADE_V0101.md",
+      "sha256": "ed99719895230ff27e544435ac332d25a6aa41687bae3b742a4081c5711acbb2"
+    },
+    {
+      "path": "extension/background.js",
+      "sha256": "8201d893a58eedb9699c2ef6a08ef5a9b51cc0febc8076de6ff25b9139e60d3f"
+    },
+    {
+      "path": "extension/caption-background.js",
+      "sha256": "8379c5922b8f6f5bf5957eda728760deca877fc99e1cadddc582d94574ef4021"
+    },
+    {
+      "path": "extension/caption-buffer.js",
+      "sha256": "b02a17b2ae91c411a9f3e9713ebdac1626161253f6f1e409440d542cbb4950ff"
+    },
+    {
+      "path": "extension/content.js",
+      "sha256": "99f1b5a7db0bc59526f5c287496d3dc056f1b53c74e8212f7a4cbb753fc9674c"
+    },
+    {
+      "path": "extension/context-review.js",
+      "sha256": "0035c69e337cf820f3d47009f895c302fc5ce3d580af144e1c5fb8bf2fccfccf"
+    },
+    {
+      "path": "extension/core.js",
+      "sha256": "b8e1ed3ef3e9cb5468c24db8261e5a98c6f3be96cda91d774851e838e7e1fb6e"
+    },
+    {
+      "path": "extension/manifest.json",
+      "sha256": "fed57d5717ea8048b04cd3453e883235a7daceb7cdc91f04253e90d8df847b71"
+    },
+    {
+      "path": "extension/offscreen.html",
+      "sha256": "c6baf4ad366ee99e49be7fc3343fc97a47b4a1b72a51212a88b66a35c46ba3ca"
+    },
+    {
+      "path": "extension/offscreen.js",
+      "sha256": "b183a5fce1ec6cd756fd87b51b0569cb608f7f0eb56a5dc454aaa580ada92524"
+    },
+    {
+      "path": "package.json",
+      "sha256": "899a5ac45b157f2d86b41580c58f8296d38e0ec8f1870cd3eebf7714a332ce27"
+    },
+    {
+      "path": "planning/BACKLOG.md",
+      "sha256": "e91c0c481f21946af52d33a4aa1ccc612b65ce67afcb111e7784cc9f241af78f"
+    },
+    {
+      "path": "planning/acceptance.json",
+      "sha256": "1bacfbc15cd7a2ee495eddc71a68519e4427749844b61a1c19a4240a327f4fa4"
+    },
+    {
+      "path": "planning/backlog.json",
+      "sha256": "0b9a3a9fe96fac03a1c7b6fff2eac72dd96f8ac3b0f21e3a324c2208e0803a08"
+    },
+    {
+      "path": "qa/V0101_CHECK_SUMMARY.json",
+      "sha256": "20695952c753532e428fb5a5075ff803bea6b452e6e1db6928e91989f6036a13"
+    },
+    {
+      "path": "qa/V0101_TEST_REPORT.md",
+      "sha256": "eb7ed66af25a0cb05e8140330d74b53d44437115e39df9682bebc784f05c13ea"
+    },
+    {
+      "path": "scripts/render_planning.py",
+      "sha256": "c4cfacd1ea191c6b49062f48429a22be7740c0d186ea89182e35b275aa17a453"
+    },
+    {
+      "path": "scripts/run_checks.py",
+      "sha256": "6b751f203a0d06c18a6abe4bad730bc8150004564a8201949bb30d20d2574f45"
+    },
+    {
+      "path": "server/app.py",
+      "sha256": "93f8e158ae47be3aa14e7b228fe3601692cda06557e99e6d7704f8f458971efa"
+    },
+    {
+      "path": "server/caption_review.py",
+      "sha256": "2cefd900a8168aca44cd4abc7aecf82a9c9944cc44d5bc91224c246de94a82c3"
+    },
+    {
+      "path": "tests/asr_extension.test.js",
+      "sha256": "eebd02ce7d37d945badab4690dc9a20ac13b5607786809fb2f5d35797d25346a"
+    },
+    {
+      "path": "tests/browser_reader_v0101.py",
+      "sha256": "4d4db450dfd1a9ce884cbb0c7938b5a0e9a14abc13de08fae9cbb9378ddd7232"
+    },
+    {
+      "path": "tests/lora_extension.test.js",
+      "sha256": "37dedcd9000f9296dd4624d949865d553bf7440bc35660b2b77b7bf5942ffb20"
+    },
+    {
+      "path": "tests/reader_v0101.test.js",
+      "sha256": "2398cef910f0868866cad3e50927d11ffcc39c12d954b7e4cfdd9482d280d1ca"
+    },
+    {
+      "path": "tests/test_caption_v0101.py",
+      "sha256": "c9a55221144fd30389ccd9633b704ece9ae1c97c5b6c064d2264311f5209d14d"
+    },
+    {
+      "path": "tests/writing_v070.test.js",
+      "sha256": "cfdc7ca9058f0f6799d50442999e43304bae909be3a2e2c8faf303270554e691"
+    }
+  ],
+  "product_files_changed": [
+    "extension/background.js",
+    "extension/caption-background.js",
+    "extension/caption-buffer.js",
+    "extension/content.js",
+    "extension/context-review.js",
+    "extension/core.js",
+    "extension/manifest.json",
+    "extension/offscreen.html",
+    "extension/offscreen.js",
+    "server/app.py",
+    "server/caption_review.py"
+  ],
+  "note": "Hash inventory; runtime data, models, user notes and .git excluded."
+}

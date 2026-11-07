@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 from fastapi import FastAPI, WebSocket, Request
 import httpx
-from .recognition import StreamingWhisperEngine
+from .asr_profiles import create_engine
 from .stream_store import StreamStore
 from .stream_service import StreamManager
 from .lora_service import attach_lora_routes
@@ -19,7 +19,7 @@ from .video_cache import CacheStore, CacheManager, default_cache_dir, attach_vid
 from .caption_review import attach_caption_routes
 from .context_review import attach_context_review_routes, availability as review_availability
 
-ENGINE=StreamingWhisperEngine()
+ENGINE=create_engine()
 MANAGER=None
 BOOT_ID=uuid.uuid4().hex
 STARTED_AT=time.monotonic()
@@ -48,6 +48,7 @@ async def lifespan(app):
         video_store.close()
         app.state.video_cache=None
         await MANAGER.stop()
+        if hasattr(ENGINE,'close'): ENGINE.close()
         store.close()
         MANAGER=None
 
@@ -55,9 +56,10 @@ app=FastAPI(title='Video Knowledge Local ASR',docs_url=None,redoc_url=None,opena
 
 @app.get('/health')
 async def health():
-    return {'ok':True,'service':'vkn-asr','version':'0.10.0','protocol':5,
+    return {'ok':True,'service':'vkn-asr','version':'0.11.0','protocol':5,
             'process_id':os.getpid(),'boot_id':BOOT_ID,'uptime_seconds':round(time.monotonic()-STARTED_AT,1),
             'runtime':MANAGER.snapshot() if MANAGER else {'stopping':True},
+            'asr_backend':ENGINE.snapshot() if hasattr(ENGINE,'snapshot') else {'backend':'faster-whisper','profile':getattr(ENGINE,'profile_name','legacy')},
             'model':ENGINE.model_name,'device':ENGINE.device,'compute':ENGINE.compute_type,
             'caption_review':{'available':True,'mode':'local_visual_and_visible','model':'qwen2.5vl:3b'},'quality_guard':'0.7.1', 'chunk_seconds_default':12, 'loaded':ENGINE.loaded,'mode':'LOCAL_ONLY','cache':str(cache_path()),
             'ws_transport_available':importlib.util.find_spec('websockets') is not None,

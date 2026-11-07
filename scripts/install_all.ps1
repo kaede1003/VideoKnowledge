@@ -3,6 +3,8 @@
 param(
     [ValidateSet('all','core','models','text','vision','asr','speaker','review','video','diagnose')]
     [string]$Profile = 'all',
+    [ValidateSet('keep','legacy','qwen17','qwen06','whisper-large','whisper-turbo')]
+    [string]$AsrProfile = 'keep',
     [switch]$Plan,
     [switch]$Yes,
     [switch]$SkipSystemTools
@@ -87,7 +89,7 @@ try {
             $Python = $VenvPython
         }
     }
-    $runnerArgs = @('-u', (Join-Path $PSScriptRoot 'install_all.py'), '--profile', $Profile)
+    $runnerArgs = @('-u', (Join-Path $PSScriptRoot 'install_all.py'), '--profile', $Profile, '--asr-profile', $AsrProfile)
     if ($Plan) { $runnerArgs += '--plan' }
     if ($Yes) { $runnerArgs += '--yes' }
     if ($SkipSystemTools) { $runnerArgs += '--skip-system-tools' }

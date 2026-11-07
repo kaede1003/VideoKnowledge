@@ -18,7 +18,7 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-INSTALLER_VERSION = '0.8.1'
+INSTALLER_VERSION = '0.8.2'
 BLOB_HOST = 'dd20bb891979d25aebc8bec07b2b3bbc.r2.cloudflarestorage.com'
 PROBE_HOSTS = ('registry.ollama.ai', 'ollama.com', BLOB_HOST)
 MODEL_NAMES = {'text': 'qwen2.5:3b', 'vision': 'qwen2.5vl:3b'}

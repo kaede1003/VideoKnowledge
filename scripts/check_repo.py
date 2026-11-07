@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-PRIVATE_DIRS = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', '.pytest_cache',
+PRIVATE_DIRS = {'.git', '.venv-qwen', '.venv', 'venv', 'node_modules', '__pycache__', '.pytest_cache',
                 '.cache', 'artifacts', 'diagnostics', 'dist', 'build', 'models',
                 'video-cache', 'recordings', 'private-data', 'user-data', 'datasets', 'exports', 'VideoKnowledge_LoRA'}
 PRIVATE_EXTS = {'.sqlite', '.sqlite3', '.db', '.pcm', '.wav', '.mp3', '.mp4', '.m4a', '.webm', '.mkv', '.part', '.ytdl',
@@ -36,10 +36,12 @@ def unsafe_path(name: str) -> str | None:
         return 'unsafe relative path'
     if any(part in PRIVATE_DIRS for part in p.parts):
         return 'runtime, private-data or generated directory'
-    if p.name == 'ASR_SETTINGS.bat' or (p.name.startswith('.env') and p.name != '.env.example'):
+    if p.name == 'asr_profile.local.json.tmp' or p.name == 'ASR_SETTINGS.bat' or (p.name.startswith('.env') and p.name != '.env.example'):
         return 'local configuration'
     if p.suffix.lower() in PRIVATE_EXTS or '.sqlite' in p.name or p.name.endswith(('.db-wal','.db-shm')):
         return 'recording, model, database, archive or credential file'
+    if p.name.lower() in {'cookies.txt','cookies.json','youtube-cookies.txt','youtube-cookies.json','cookies.sqlite'}:
+        return 'browser session credential export'
     if p.name in ('完整笔记.txt',) or p.name.endswith('_知识笔记.html'):
         return 'private notebook export'
     if p.name.endswith(('.local.json','.local.toml','.log','.pyc')):

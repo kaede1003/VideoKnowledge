@@ -19,6 +19,7 @@ let detachPromise=null,stopCapturePromise=null;
 let asrPhase='idle';
 function cancelled(){return Error('CAPTURE_CANCELLED：采集启动已取消');}
 function releaseCaptureResources(){
+  stopCaptionSampler();
   const oldStream=stream,oldCtx=ctx,oldSource=source,oldVideo=videoPreview;
   stream=null;ctx=null;source=null;videoPreview=null;frameCanvas=null;capture=null;videoCrop=null;
   try{oldSource?.disconnect();}catch{}
@@ -139,6 +140,7 @@ async function attachAsr(options){
   }catch(e){if(ticket===asrEpoch)asrPhase='idle';throw e;}
 }
 function detachAsr(){
+  stopCaptionSampler();
   ++asrEpoch;
   if(detachPromise)return detachPromise;
   const node=processor,gain=silent,localSource=source,client=audioClient,context=capture?{...capture}:client?.meta.context;
@@ -263,13 +265,39 @@ function captionFrame(){
   canvas.getContext('2d').drawImage(videoPreview,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
   return {time:currentMediaTime(),image:canvas.toDataURL('image/jpeg',.9),stream:audioClient.meta.id,epoch:audioClient.meta.captureBoundary||0};
 }
-async function captureCaptionPair(msg){
-  if(!capture||capture.tabId!==msg.tabId||capture.sessionKey!==msg.sessionKey)throw Error('CAPTION_CAPTURE_TARGET');
+// Collect independently of visual inference; otherwise a slow model causes
+// every subtitle shown while it works to be missed. Crops remain memory-only.
+const subtitlePairs=globalThis.VknCaptionBuffer?new VknCaptionBuffer.PairBuffer():null;
+let captionSampler=null,captionSamplerTicket=0,captionSampling=false,captionSampleError='';
+function stopCaptionSampler(){
+  ++captionSamplerTicket;if(captionSampler)clearInterval(captionSampler);captionSampler=null;
+  subtitlePairs?.clear();
+}
+function configureCaptionSampler(msg){
+  if(!capture||capture.tabId!==msg.tabId||capture.sessionKey!==msg.sessionKey)return {enabled:false};
+  if(!msg.enabled){stopCaptionSampler();return {enabled:false};}
+  if(!subtitlePairs)return {enabled:false};
+  if(!captionSampler){captionSampler=setInterval(()=>sampleCaptionPair().catch(()=>{}),1500);sampleCaptionPair().catch(()=>{});}
+  return {enabled:true,...subtitlePairs.status()};
+}
+async function readCurrentCaptionPair(){
   const ticket=asrEpoch,a=captionFrame();if(!a)throw Error('CAPTION_NO_FRAME：请让播放器完整可见；未采集网页其他区域');
   await new Promise(r=>setTimeout(r,450));
-  if(ticket!==asrEpoch||!capture||capture.sessionKey!==msg.sessionKey)throw Error('CAPTION_CANCELLED');
+  if(ticket!==asrEpoch||!capture)throw Error('CAPTION_CANCELLED');
   const b=captionFrame();if(!b||a.stream!==b.stream||a.epoch!==b.epoch||b.time<=a.time||b.time-a.time>2)throw Error('CAPTION_FRAME_CHANGED');
-  return {frames:[a,b]};
+  return [a,b];
+}
+async function sampleCaptionPair(){
+  if(captionSampling||!asrActive||asrPaused||player.paused||!captionSampler)return;
+  const ticket=captionSamplerTicket;captionSampling=true;
+  try{const pair=await readCurrentCaptionPair();if(ticket===captionSamplerTicket&&captionSampler){subtitlePairs.push(pair);captionSampleError='';}}
+  catch(e){captionSampleError=String(e.message||e).slice(0,200);}
+  finally{captionSampling=false;}
+}
+async function captureCaptionPair(msg){
+  if(!capture||capture.tabId!==msg.tabId||capture.sessionKey!==msg.sessionKey)throw Error('CAPTION_CAPTURE_TARGET');
+  const frames=subtitlePairs?.take(audioClient?.meta.id,audioClient?.meta.captureBoundary||0,currentMediaTime())||await readCurrentCaptionPair();
+  return {frames,sampling:subtitlePairs?{...subtitlePairs.status(),message:captionSampleError}:{queued:0,dropped:0}};
 }
 
 async function startLora(msg){
@@ -355,6 +383,7 @@ chrome.runtime.onMessage.addListener((msg,_sender,reply)=>{
   (async()=>{
     if(['VKN_CAPTURE_STOP','VKN_ASR_STOP','VKN_LORA_STOP'].includes(msg.type)&&msg.expectedTabId&&capture?.tabId&&capture.tabId!==msg.expectedTabId)throw Error('另一个标签页正在采集，请在该标签页停止');
     switch(msg.type){
+      case 'VKN_CAPTION_BUFFER_CONFIG':return configureCaptionSampler(msg);
       case 'VKN_CAPTION_PAIR':return await captureCaptionPair(msg);
       case 'VKN_ASR_PREPARE':await restoreReady;return {ready:true};
       case 'VKN_CAPTURE_START':return await startCapture(msg);

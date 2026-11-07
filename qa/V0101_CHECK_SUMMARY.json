@@ -1,0 +1,156 @@
+{
+  "version": "0.10.1",
+  "started_utc": "2026-11-07T07:14:32.996968+00:00",
+  "python": "3.13.5",
+  "platform": "linux",
+  "scope": "Code, fixture units, real DOM; NOT Windows Edge native capture or real Whisper/Ollama accuracy",
+  "checks": [
+    {
+      "name": "repository",
+      "command": [
+        "python",
+        "scripts/check_repo.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.733,
+      "log": "artifacts/checks/final-v0101/repository.log"
+    },
+    {
+      "name": "js-syntax",
+      "command": [
+        "node",
+        "scripts/check_js.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.919,
+      "log": "artifacts/checks/final-v0101/js-syntax.log"
+    },
+    {
+      "name": "javascript",
+      "command": [
+        "node",
+        "scripts/run_js_tests.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.767,
+      "log": "artifacts/checks/final-v0101/javascript.log"
+    },
+    {
+      "name": "python-compile",
+      "command": [
+        "python",
+        "-m",
+        "compileall",
+        "-q",
+        "server",
+        "scripts",
+        "tests"
+      ],
+      "exit_code": 0,
+      "seconds": 0.869,
+      "log": "artifacts/checks/final-v0101/python-compile.log"
+    },
+    {
+      "name": "python",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "seconds": 3.326,
+      "log": "artifacts/checks/final-v0101/python.log"
+    },
+    {
+      "name": "browser_reader_v0101",
+      "command": [
+        "python",
+        "tests/browser_reader_v0101.py"
+      ],
+      "exit_code": 0,
+      "seconds": 1.875,
+      "log": "artifacts/checks/final-v0101/browser_reader_v0101.log"
+    },
+    {
+      "name": "browser_caption_v0100",
+      "command": [
+        "python",
+        "tests/browser_caption_v0100.py"
+      ],
+      "exit_code": 0,
+      "seconds": 7.34,
+      "log": "artifacts/checks/final-v0101/browser_caption_v0100.log"
+    },
+    {
+      "name": "browser_quality_v071",
+      "command": [
+        "python",
+        "tests/browser_quality_v071.py"
+      ],
+      "exit_code": 0,
+      "seconds": 6.038,
+      "log": "artifacts/checks/final-v0101/browser_quality_v071.log"
+    },
+    {
+      "name": "browser_writing_v070",
+      "command": [
+        "python",
+        "tests/browser_writing_v070.py"
+      ],
+      "exit_code": 0,
+      "seconds": 11.213,
+      "log": "artifacts/checks/final-v0101/browser_writing_v070.log"
+    },
+    {
+      "name": "browser_ai_v052",
+      "command": [
+        "python",
+        "tests/browser_ai_v052.py"
+      ],
+      "exit_code": 0,
+      "seconds": 4.084,
+      "log": "artifacts/checks/final-v0101/browser_ai_v052.log"
+    },
+    {
+      "name": "browser_content_v052",
+      "command": [
+        "python",
+        "tests/browser_content_v052.py"
+      ],
+      "exit_code": 0,
+      "seconds": 10.821,
+      "log": "artifacts/checks/final-v0101/browser_content_v052.log"
+    },
+    {
+      "name": "browser_v080",
+      "command": [
+        "python",
+        "tests/browser_v080.py"
+      ],
+      "exit_code": 0,
+      "seconds": 4.341,
+      "log": "artifacts/checks/final-v0101/browser_v080.log"
+    },
+    {
+      "name": "browser_presentation_v090",
+      "command": [
+        "python",
+        "tests/browser_presentation_v090.py"
+      ],
+      "exit_code": 0,
+      "seconds": 5.289,
+      "log": "artifacts/checks/final-v0101/browser_presentation_v090.log"
+    }
+  ],
+  "all_passed": true,
+  "expected_check_count": 13,
+  "javascript_tests": 246,
+  "python_tests": 250,
+  "browser_groups": 8
+}

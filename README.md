@@ -1,18 +1,35 @@
+# V0.11.0 · ASR引擎接入预览
+
+**本轮已接入代码，真实模型质量待验收；不会自动替换已有设置。** 选择新模型只用一个安装入口：
+
+```powershell
+.\INSTALL_ALL.bat -Profile asr -AsrProfile qwen17
+```
+
+停服务后运行；成功加载检查才切换，再启动`START_LOCAL_ASR.bat`。失败保留旧选择；回退参数`-AsrProfile legacy`。Qwen使用独立`.venv-qwen`，并非Ollama模型。
+
+[升级/边界/评测说明](docs/UPGRADE_V0110_ASR.md) · [当前状态](docs/STATUS.md) · [实际测试报告](qa/V0110_ASR_TEST_REPORT.md)
+
+版本：扩展/服务0.11.0、安装器0.8.2、协议5、git-r8。以下原操作说明继续适用；历史版本号不代表当前发布。
+
+---
+
 # 视频知识笔记 · Video Knowledge Notebook
 
-**Edge扩展0.10.0 / 本地服务0.10.0 / 一键安装器0.8.1 / git-r5。** 原型源码；尚未在目标Windows Edge及真实模型上完成端到端验收。
+**Edge扩展0.10.2 / 本地服务0.10.2 / 一键安装器0.8.1 / git-r7。** 原型源码；尚未在目标Windows Edge及真实模型上完成端到端验收。
 
-新增听写期间字幕辅助校正：活动文字字幕优先，无可读字幕再对已授权视频流底部采样；原ASR不覆盖，局部同音修订可撤销。**无关内容过滤已移除**，旧排除设置不再生效。短字/残句在合理边界内拼回发言，生成结果改为内容高度和面板内部滚动。
+本次修复视频切换期间旧笔记/旧成稿残留、异步加载竞争和完整阅读来源错配；生成结果绑定视频与文稿ID。视频下载移除会把首项完成当失败的数量限制，细分失败原因，并新增默认匿名重试与**单次明确授权**的YouTube会话重试。未在用户Windows或真实YouTube账号上验证，不能保证所有视频下载成功。
 
-[升级与使用](docs/UPGRADE_V0100.md) · [测试与限制](qa/V0100_TEST_REPORT.md) · [当前状态](docs/STATUS.md) · [已知问题](docs/KNOWN_ISSUES.md)
+保留字幕校对、标点断句、五种整理文体和72小时缓存；**无关内容过滤仍已移除**。本版不重写已有文稿、不删除原文，不自动还原历史混入的资料。
+[升级与使用](docs/UPGRADE_V0102.md) · [测试与限制](qa/V0102_TEST_REPORT.md) · [当前状态](docs/STATUS.md) · [已知问题](docs/KNOWN_ISSUES.md)
 
 | 组件 | 版本 |
 |---|---|
-| Edge扩展 | 0.10.0 |
-| 本地ASR / LoRA / 字幕校验服务 | 0.10.0 |
+| Edge扩展 | 0.10.2 |
+| 本地ASR / LoRA / 字幕校验服务 | 0.10.2 |
 | 安装器 | 0.8.1 |
 | 音频协议 | VKN5 / 5 |
-| 工程修订 | git-r5 |
+| 工程修订 | git-r7 |
 
 已有用户必须同时覆盖扩展与服务并重启。不要卸载原扩展或删除模型、环境和笔记。首次/补缺项只运行 INSTALL_ALL.bat，日常仍运行 START_LOCAL_ASR.bat 或 START_ACCURATE_ASR.bat（二者选一）。
 
@@ -72,7 +89,7 @@ py -3.11 scripts/check_repo.py
 git add .
 py -3.11 scripts/check_repo.py --staged
 git status --short
-git commit -m "feat: explicit capture and readable writing modes 0.9.0"
+git commit -m "fix: isolate video readers and cache retry 0.10.2"
 ```
 
 有 `.venv` 时可将 `py -3.11` 换成 `.\.venv\Scripts\python.exe`。`--staged` 检查实际暂存内容，包含被 `git add -f` 加入的文件。它是轻量检查，不替代人工检查 `git diff --cached`。
@@ -83,7 +100,7 @@ git commit -m "feat: explicit capture and readable writing modes 0.9.0"
 
 先读 `AGENTS.md` → `docs/STATUS.md` → `docs/KNOWN_ISSUES.md` → `planning/BACKLOG.md`。从 **VK-002：真实长文超时计时** 开始；后续持久任务草案在 `docs/RFC_LONG_TASKS.md`。不要先扩张界面功能，也不要把过滤异常文字当成修复语音准确率。
 
-当前规划有30项任务和37项验收场景。新增功能已实现代码并作构造测试，真实环境验收未通过前保持in_progress；实际状态以JSON和QA报告为准。
+当前规划有43项任务和50项验收场景。新增功能已实现代码并作构造测试，真实环境验收未通过前保持in_progress；实际状态以JSON和QA报告为准。
 
 ## 目录
 

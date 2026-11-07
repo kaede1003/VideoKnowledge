@@ -1,4 +1,4 @@
-"""One cancellable download job. Uses yt-dlp's public Python API, no browser cookies."""
+"""One cancellable download job. Uses yt-dlp's public Python API, optional explicitly supplied YouTube-only session, never a browser database."""
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -12,13 +12,8 @@ def emit(kind, **fields):
     print(json.dumps({'kind': kind, **fields}, ensure_ascii=True), flush=True)
 
 
-def error_code(exc):
-    text = str(exc).lower()
-    if 'video_live' in text: return 'VIDEO_LIVE'
-    if 'video_size' in text or 'larger than max-filesize' in text: return 'VIDEO_SIZE'
-    if 'ffmpeg' in text: return 'VIDEO_FFMPEG'
-    if 'javascript runtime' in text or 'js runtime' in text: return 'VIDEO_RUNTIME'
-    return 'VIDEO_SOURCE_UNAVAILABLE'
+from .video_errors import error_code
+from .video_auth import clean_cookies, install_cookiejar
 
 
 def download(spec, factory=None):
@@ -32,6 +27,7 @@ def download(spec, factory=None):
     limit = min(MAX_BYTES, max(1024, int(spec.get('max_bytes', MAX_BYTES))))
     has_ffmpeg = bool(shutil.which('ffmpeg'))
     last = [0.0]
+    cookies = clean_cookies(spec['youtube_cookies'],url,spec.get('login_consent')) if spec.get('youtube_cookies') else []
 
     def progress(item):
         if item.get('status') == 'finished':
@@ -46,8 +42,9 @@ def download(spec, factory=None):
     def allowed(info, *, incomplete=False):
         if info.get('is_live') or info.get('live_status') in {'is_live', 'is_upcoming', 'post_live'}:
             raise ValueError('VIDEO_LIVE')
-        if info.get('has_drm') or info.get('availability') in {'premium_only', 'subscriber_only', 'needs_auth', 'private'}:
-            raise ValueError('VIDEO_SOURCE_UNAVAILABLE')
+        if info.get('has_drm'):raise ValueError('VIDEO_PROTECTED')
+        if info.get('availability') in {'premium_only','subscriber_only','private'}:raise ValueError('VIDEO_RESTRICTED')
+        if info.get('availability')=='needs_auth':raise ValueError('VIDEO_LOGIN_REQUIRED')
         return None
 
     class Quiet:
@@ -66,7 +63,10 @@ def download(spec, factory=None):
         if location:
             runtimes[name] = {'path': location}
     opts = {'format': fmt, 'outtmpl': str(directory / 'media.%(ext)s'),
-            'noplaylist': True, 'playlist_items': '1', 'max_downloads': 1,
+            'noplaylist': True, 'playlist_items': '1',
+            # A canonical single-video URL is already enforced. max_downloads=1
+            # raises MaxDownloadsReached AFTER a successful first item via extract_info.
+            # Do not mistake the library's end-of-quota exception for a download error.
             'quiet': True, 'no_warnings': True, 'logger': Quiet(), 'progress_hooks': [progress],
             'match_filter': allowed, 'socket_timeout': 20, 'retries': 2, 'fragment_retries': 2,
             'concurrent_fragment_downloads': 1, 'continuedl': False, 'overwrites': False,
@@ -76,10 +76,17 @@ def download(spec, factory=None):
             'skip_unavailable_fragments': False, 'allow_unplayable_formats': False,
             'js_runtimes': runtimes, 'remote_components': set(),
             'merge_output_format': 'mp4/mkv', 'restrictfilenames': True}
-    with factory(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        if not info or info.get('_type') in {'playlist', 'multi_video'}:
-            raise ValueError('VIDEO_OUTPUT: individual video required')
+    try:
+        with factory(opts) as ydl:
+            if cookies:install_cookiejar(ydl.cookiejar,cookies)
+            try:
+                info = ydl.extract_info(url, download=True)
+                if not info or info.get('_type') in {'playlist', 'multi_video'}:
+                    raise ValueError('VIDEO_OUTPUT: individual video required')
+            finally:
+                if cookies:ydl.cookiejar.clear()
+    finally:
+        cookies.clear();spec.pop('youtube_cookies',None)
     files = [p for p in directory.iterdir() if p.stem == 'media' and p.suffix in MEDIA_EXTS and p.is_file() and not p.is_symlink()]
     if len(files) != 1 or files[0].stat().st_size <= 0:
         raise ValueError('VIDEO_OUTPUT')
@@ -90,8 +97,8 @@ def download(spec, factory=None):
 
 def main():
     try:
-        raw = sys.stdin.buffer.readline(16385)
-        if len(raw) > 16384: raise ValueError('VIDEO_OUTPUT')
+        raw = sys.stdin.buffer.readline(131073)
+        if len(raw) > 131072: raise ValueError('VIDEO_OUTPUT')
         download(json.loads(raw))
         return 0
     except ImportError:

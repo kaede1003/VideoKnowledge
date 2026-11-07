@@ -51,6 +51,12 @@
 | AC-043 | 烧录字幕底部采样与资源退让 | automated_and_manual | target_pending |
 | AC-044 | 短片段拼接与跨片段同音推断 | automated_and_manual | target_pending |
 | AC-045 | 生成空白布局回归 | automated_and_manual | target_pending |
+| AC-046 | 英文字幕及采样队列 | automated_and_manual | target_pending |
+| AC-047 | 文字稿断句回退 | automated_and_manual | target_pending |
+| AC-048 | 视频切换与阅读来源隔离 | automated_and_manual | target_pending |
+| AC-049 | 单视频下载完成信号与错误分类 | automated_and_manual | target_pending |
+| AC-050 | YouTube单次会话授权重试 | automated_and_manual | target_pending |
+| AC-051 | Qwen3-ASR原音处理与不破坏旧环境 | automated_and_manual | target_pending |
 
 ## 具体步骤
 
@@ -501,5 +507,65 @@
 操作：未生成/生成中/成功/失败/取消、三种宽度、宿主网页滚动。
 
 预期：满足UPGRADE_V0100对应行为；原文与旧结果保留；失败降级不假报准确。
+
+当前状态：`target_pending`。
+
+### AC-046 · 英文字幕及采样队列
+
+前置：合成规则与DOM回归；目标Edge/模型另验。
+
+操作：同时间稳定字幕、不同字数拼写、数字/否定/冲突/无字幕、积压及停止释放。。
+
+预期：满足UPGRADE_V0101保护/回退规则；不得以模拟替代真实准确率。
+
+当前状态：`target_pending`。
+
+### AC-047 · 文字稿断句回退
+
+前置：合成规则与DOM回归；目标Edge/模型另验。
+
+操作：模型原样返回、改字、漏项、无效JSON；逐条保留成功结果，失败仅补标点，原字词保留并有回退详情。。
+
+预期：满足UPGRADE_V0101保护/回退规则；不得以模拟替代真实准确率。
+
+当前状态：`target_pending`。
+
+### AC-048 · 视频切换与阅读来源隔离
+
+前置：0.10.2扩展与服务，合成测试通过；原生环境另验。
+
+操作：A->B立即阅读、B->C慢加载、失败加载、相同文稿ID/长度、迟到ASR、独立多标签、复制导出。
+
+预期：符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除。
+
+当前状态：`target_pending`。
+
+### AC-049 · 单视频下载完成信号与错误分类
+
+前置：0.10.2扩展与服务，合成测试通过；原生环境另验。
+
+操作：首项下载触发限额、部分文件、匿名重试、403/429/缺格式/EJS/网络错误、有效缓存到期不延长。
+
+预期：符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除。
+
+当前状态：`target_pending`。
+
+### AC-050 · YouTube单次会话授权重试
+
+前置：0.10.2扩展与服务，合成测试通过；原生环境另验。
+
+操作：取消确认、拒绝权限、其他站点/其他所有者、过期会话、匿名不读取、撤销权限、真实Edge登录下载。
+
+预期：符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除。
+
+当前状态：`target_pending`。
+
+### AC-051 · Qwen3-ASR原音处理与不破坏旧环境
+
+前置：0.11.0源码；Windows RTX5080、授权音频和人工参考稿由目标环境提供。
+
+操作：同一INSTALL_ALL选择qwen17；失败不切换；成功后核对health和每条引擎字段；同音频对比；测试退出/超时/词时间戳缺失；回退legacy。
+
+预期：无虚构置信度、无静默回退、无失败游标推进；原语言与译文分开；报告真实CER/RTF而非模拟精度；旧笔记保留。
 
 当前状态：`target_pending`。

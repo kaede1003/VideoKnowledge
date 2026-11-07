@@ -1,0 +1,9 @@
+# Installed ONLY into .venv-qwen, not the existing service environment.
+# torch==2.9.1 CUDA12.8 is installed separately from the official PyTorch index.
+transformers==5.13.0
+accelerate>=1.12,<2
+numpy>=1.26,<3
+librosa>=0.11,<1
+soundfile>=0.13,<1
+safetensors>=0.6,<1
+huggingface-hub>=1,<2

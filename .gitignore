@@ -69,3 +69,12 @@ video-cache/
 *.mkv
 *.part
 *.ytdl
+
+# Never commit site session exports (not used by the product)
+cookies.txt
+cookies.json
+youtube-cookies.*
+
+# Isolated Qwen ASR runtime; never commit its packages
+.venv-qwen/
+asr_profile.local.json.tmp

@@ -406,6 +406,60 @@
       "steps": "未生成/生成中/成功/失败/取消、三种宽度、宿主网页滚动",
       "expected": "满足UPGRADE_V0100对应行为；原文与旧结果保留；失败降级不假报准确",
       "status": "target_pending"
+    },
+    {
+      "id": "AC-046",
+      "title": "英文字幕及采样队列",
+      "kind": "automated_and_manual",
+      "preconditions": "合成规则与DOM回归；目标Edge/模型另验",
+      "steps": "同时间稳定字幕、不同字数拼写、数字/否定/冲突/无字幕、积压及停止释放。",
+      "expected": "满足UPGRADE_V0101保护/回退规则；不得以模拟替代真实准确率",
+      "status": "target_pending"
+    },
+    {
+      "id": "AC-047",
+      "title": "文字稿断句回退",
+      "kind": "automated_and_manual",
+      "preconditions": "合成规则与DOM回归；目标Edge/模型另验",
+      "steps": "模型原样返回、改字、漏项、无效JSON；逐条保留成功结果，失败仅补标点，原字词保留并有回退详情。",
+      "expected": "满足UPGRADE_V0101保护/回退规则；不得以模拟替代真实准确率",
+      "status": "target_pending"
+    },
+    {
+      "id": "AC-048",
+      "title": "视频切换与阅读来源隔离",
+      "kind": "automated_and_manual",
+      "preconditions": "0.10.2扩展与服务，合成测试通过；原生环境另验",
+      "steps": "A->B立即阅读、B->C慢加载、失败加载、相同文稿ID/长度、迟到ASR、独立多标签、复制导出",
+      "expected": "符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除",
+      "status": "target_pending"
+    },
+    {
+      "id": "AC-049",
+      "title": "单视频下载完成信号与错误分类",
+      "kind": "automated_and_manual",
+      "preconditions": "0.10.2扩展与服务，合成测试通过；原生环境另验",
+      "steps": "首项下载触发限额、部分文件、匿名重试、403/429/缺格式/EJS/网络错误、有效缓存到期不延长",
+      "expected": "符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除",
+      "status": "target_pending"
+    },
+    {
+      "id": "AC-050",
+      "title": "YouTube单次会话授权重试",
+      "kind": "automated_and_manual",
+      "preconditions": "0.10.2扩展与服务，合成测试通过；原生环境另验",
+      "steps": "取消确认、拒绝权限、其他站点/其他所有者、过期会话、匿名不读取、撤销权限、真实Edge登录下载",
+      "expected": "符合UPGRADE_V0102；来源不混入、权限显式且可撤销、失败不假报成功；原文笔记不删除",
+      "status": "target_pending"
+    },
+    {
+      "id": "AC-051",
+      "title": "Qwen3-ASR原音处理与不破坏旧环境",
+      "kind": "automated_and_manual",
+      "preconditions": "0.11.0源码；Windows RTX5080、授权音频和人工参考稿由目标环境提供",
+      "steps": "同一INSTALL_ALL选择qwen17；失败不切换；成功后核对health和每条引擎字段；同音频对比；测试退出/超时/词时间戳缺失；回退legacy",
+      "expected": "无虚构置信度、无静默回退、无失败游标推进；原语言与译文分开；报告真实CER/RTF而非模拟精度；旧笔记保留",
+      "status": "target_pending"
     }
   ]
 }

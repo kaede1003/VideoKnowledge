@@ -7,7 +7,7 @@ const read=f=>fs.readFileSync(path.join(ext,f),'utf8');
 
 test('LoRA module is optional and uses user-initiated local tab capture',()=>{
  const m=JSON.parse(read('manifest.json'));
- assert.equal(m.version,'0.10.0');
+ assert.equal(m.version,JSON.parse(fs.readFileSync(path.join(__dirname,'../VERSION.json'),'utf8')).extension);
  for(const p of ['tabCapture','offscreen','downloads'])assert.ok(m.permissions.includes(p));
  assert.ok(read('offscreen.js').includes('videoPreview.srcObject'));
  assert.ok(read('offscreen.js').includes("toDataURL('image/jpeg'"));

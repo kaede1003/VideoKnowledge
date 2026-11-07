@@ -12,7 +12,7 @@ c=load('check_repo');runner=load('run_checks')
 
 class RepositoryToolTests(unittest.TestCase):
     def test_private_paths_blocked(self):
-        for path in ['.env','ASR_SETTINGS.bat','models/model.onnx','recordings/take.wav','user-data/note.txt','x.sqlite3-wal','完整笔记.txt']:
+        for path in ['.env','ASR_SETTINGS.bat','models/model.onnx','recordings/take.wav','user-data/note.txt','x.sqlite3-wal','完整笔记.txt','cookies.txt','Cookies.json','youtube-cookies.txt']:
             self.assertIsNotNone(c.unsafe_path(path),path)
     def test_source_templates_allowed(self):
         for path in ['ASR_SETTINGS.example.bat','extension/options.html','docs/assets/compact-panel.png','.env.example']:

@@ -8,6 +8,8 @@ import sys
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--model', default='small')
+    p.add_argument('--device', choices=['cpu','cuda'], default='cpu')
+    p.add_argument('--compute', default='int8')
     args = p.parse_args()
     from faster_whisper import WhisperModel
     from faster_whisper.utils import available_models, download_model
@@ -29,7 +31,7 @@ def main():
     else:
         raise ValueError('Unsupported automatic ASR download name; use a known faster-whisper model or an existing directory.')
     # No transcript or audio is needed for a loading smoke check.
-    model = WhisperModel(model_path, device='cpu', compute_type='int8', local_files_only=True, cpu_threads=2)
+    model = WhisperModel(model_path, device=args.device, compute_type=args.compute, local_files_only=True, cpu_threads=2)
     del model
     print('[OK] ASR model loaded locally. No speech accuracy or latency benchmark was performed.', flush=True)
     return 0

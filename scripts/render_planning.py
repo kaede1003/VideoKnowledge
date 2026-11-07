@@ -8,7 +8,7 @@ def render():
     tasks=json.loads((ROOT/'planning/backlog.json').read_text(encoding='utf-8'))['tasks']
     cases=json.loads((ROOT/'planning/acceptance.json').read_text(encoding='utf-8'))['cases']
     rows=['# 开发任务清单','', '> 本文件由 `planning/backlog.json` 生成；编辑JSON后运行 `python scripts/render_planning.py`。',
-          '', '当前版本扩展0.10.0/服务0.10.0/安装器0.8.1。新增任务in_progress表示代码/构造测试已交付、真实环境仍待验收；done需要对应证据。', '',
+          '', '当前版本扩展0.11.0/服务0.11.0/安装器0.8.2。新增任务in_progress表示代码/构造测试已交付、真实环境仍待验收；done需要对应证据。', '',
           '| ID | 优先级 | 状态 | 任务 | 依赖 |','|---|---|---|---|---|']
     for t in tasks: rows.append(f"| {t['id']} | {t['priority']} | {t['status']} | {t['title']} | {', '.join(t['depends_on']) or '—'} |")
     rows+=['','## 逐项交付与验收','']

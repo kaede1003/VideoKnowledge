@@ -65,6 +65,8 @@ async function loadSession(key) {
 function saveSession(s){return notebookWrite(()=>writeSession(s));}
 async function writeSession(s) {
   if (!s || !validKey(s.key)) throw Error('视频标识无效');
+  if(s.url&&VideoKnowledgeCore.pageKey(s.url)!==s.key)throw Error('SESSION_SOURCE_MISMATCH：笔记链接与视频标识不符；拒绝覆盖已有记录。');
+  if((s.documents||[]).some(d=>d.sourceKey&&d.sourceKey!==s.key))throw Error('DOCUMENT_SOURCE_MISMATCH：拒绝保存其他视频的整理结果。');
   const prior=await loadSession(s.key);
   const segments=VideoKnowledgeCore.mergeCues((prior?.segments||[]).filter(x=>x.id),s.segments||[],MAX_CUES);
   const pending=VideoKnowledgeCore.sortedCues(s.pendingSummary||[]).map(x=>x.id?(segments.find(y=>y.id===x.id)||x):x);
@@ -181,6 +183,12 @@ async function askModel(cfg,system,user,options={}){
     const payload={model:cfg.model,temperature:0.2,stream:false,
       messages:[{role:'system',content:system},{role:'user',content:user}]};
     if(options.maxTokens)payload.max_tokens=options.maxTokens;
+    // Use JSON constraints only for the local provider we explicitly support;
+    // never assume arbitrary remote endpoints implement this optional feature.
+    if(options.jsonSchema&&VknAiConfig.isLocalOllama(cfg.endpoint)){
+      payload.temperature=0;
+      payload.response_format={type:'json_schema',json_schema:{name:'vkn_punctuation',strict:true,schema:options.jsonSchema}};
+    }
     const r=await fetch(url.toString(),{method:'POST',redirect:'error',signal:controller.signal,
       headers:{'content-type':'application/json',...(cfg.apiKey?{'authorization':'Bearer '+cfg.apiKey}:{})},
       body:JSON.stringify(payload)});
@@ -211,6 +219,8 @@ async function generateAiMarkdown(cues,meta={},options={}) {
   const C=VideoKnowledgeCore;
   let plan=C.prepareWriting(cues,options.writing,6000,130000,meta||{});
   const cfg=await readAiConfig();await preflightAi(cfg,options);
+  const captionCheck=await vknReviewStoredCaptions(plan.cues,meta.captionObservations,options);
+  if(Object.keys(captionCheck.reviews).length)plan=C.prepareWriting(captionCheck.cues,options.writing,6000,130000,meta||{});
   let phraseReview=null;const reviewSource=plan.cues,originalScreening=plan.screening;
   if(plan.options.correctPhrases){
     const reviewed=await vknReviewPhrases(reviewSource,cfg,meta,options);phraseReview=reviewed.report;
@@ -221,27 +231,44 @@ async function generateAiMarkdown(cues,meta={},options={}) {
   const positions=new Map(C.sortedCues(cues).map((c,i)=>[C.cueIdentity(c),i]));
   const selected=plan.cues.map((c,i)=>({...c,readingBoundary:i>0&&positions.get(C.cueIdentity(c))!==positions.get(C.cueIdentity(plan.cues[i-1]))+1}));
   const turns=C.readingTurns(selected);
-  const audit={version:1,notes:[],corrections:'',turns:turns.map(t=>({id:t.id,label:t.label,start:t.start,end:t.end,cueIds:t.cueIds}))};
+  const audit={version:1,notes:[...captionCheck.notes],corrections:'',turns:turns.map(t=>({id:t.id,label:t.label,start:t.start,end:t.end,cueIds:t.cueIds}))};
   if(phraseReview){audit.corrections=VknContextReview.appendix(phraseReview,reviewSource);if(phraseReview.note)audit.notes.push(phraseReview.note);}
   let markdown='',blocks=0;
   if(plan.options.mode==='transcript'){
-    // A transcript is not an essay: deterministic turns, punctuation-only model,
-    // strict character/number preservation, then deterministic rendering.
-    const batches=C.transcriptBatches(turns),formatted=[];
+    // Small units prevent one spelling correction or malformed row from sending
+    // an entire long paragraph back to unpunctuated ASR. Display turns stay intact.
+    const units=C.punctuationUnits(turns),batches=C.transcriptBatches(units),formatted=[];
+    let failedRequests=0,layoutOnly=0,retried=0;
     for(let i=0;i<batches.length;i++){
       throwIfCancelled(options.signal);options.phaseProgress?.('断句排版',i+1,batches.length);
-      const prompt=C.transcriptPunctuationPrompt(batches[i]);let validated;
+      const batch=batches[i],prompt=C.transcriptPunctuationPrompt(batch);let validated;
       try{
-        const text=await askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:4096});
-        validated=C.validateTranscriptPunctuation(text,batches[i]);
+        const text=await askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:3000,jsonSchema:C.punctuationSchema()});
+        validated=C.validateTranscriptPunctuation(text,batch);
       }catch(e){
         throwIfCancelled(options.signal);
         if(!/AI_(?:OUTPUT_TRUNCATED|INFERENCE_TIMEOUT|RESPONSE_FORMAT|EMPTY_REPLY)/.test(String(e?.message||e)))throw e;
-        validated={turns:batches[i],held:batches[i].map(t=>({id:t.id,reason:'本次断句请求未完成，保留完整原文字：'+String(e.message).split('：')[0]}))};
+        failedRequests++;validated={turns:batch,held:batch.map(t=>({id:t.id,reason:'断句请求未完成：'+String(e.message).split('：')[0]}))};
       }
-      formatted.push(...validated.turns);audit.notes.push(...validated.held.map(x=>x.id+'：'+x.reason));blocks++;
+      if(validated.held.length){
+        const ids=new Set(validated.held.map(x=>x.id)),retry=batch.filter(t=>ids.has(t.id));
+        let repair={turns:retry,held:validated.held};
+        // A second request uses positions anchored to exact source phrases, not
+        // another free rewrite. Never endlessly retry a stalled local model.
+        if(failedRequests<2){
+          const p=C.punctuationRepairPrompt(retry);
+          try{const text=await askModel(cfg,p.system,p.user,{...options,maxTokens:2200,jsonSchema:C.punctuationSchema(true)});repair=C.validatePunctuationRepair(text,retry);retried+=retry.length;}
+          catch(e){throwIfCancelled(options.signal);if(!/AI_(?:OUTPUT_TRUNCATED|INFERENCE_TIMEOUT|RESPONSE_FORMAT|EMPTY_REPLY)/.test(String(e?.message||e)))throw e;failedRequests++;}
+        }
+        const unresolved=new Set(repair.held.map(x=>x.id)),repaired=new Map(repair.turns.map(t=>[t.id,t]));
+        validated.turns=validated.turns.map(t=>{if(!ids.has(t.id))return t;if(unresolved.has(t.id)){layoutOnly++;return C.fallbackTranscriptLayout(repaired.get(t.id)||t);}return repaired.get(t.id)||t;});
+        audit.notes.push(...repair.held.map(x=>x.id+'：'+x.reason));
+      }
+      formatted.push(...validated.turns);blocks++;
     }
-    markdown=C.formatTranscriptTurns(formatted);
+    if(retried)audit.notes.push('标点局部重试：'+retried+' 个短单元；纠词与标点分别校验。');
+    if(layoutOnly)audit.notes.push('基础排版回退：'+layoutOnly+' 个短单元。保留所有原字，只按连接词/词界分行；不代表语义断句已通过。');
+    markdown=C.formatTranscriptTurns(C.mergePunctuationUnits(turns,formatted));
   }else{
     const partial=[];const knowledge=plan.options.mode==='knowledge',multi=plan.chunks.length>1;
     for(let i=0;i<plan.chunks.length;i++){
@@ -264,7 +291,7 @@ async function generateAiMarkdown(cues,meta={},options={}) {
   }
   throwIfCancelled(options.signal);
   if(!markdown.trim())throw Error('AI_EMPTY_BODY：没有形成可阅读的正文，原文与旧结果保留。');
-  return {audit,phraseReview:phraseReview?{applied:phraseReview.applied.length,held:phraseReview.held.length,failed:phraseReview.failed}:null,
+  return {captionReviews:captionCheck.reviews,audit,phraseReview:phraseReview?{applied:phraseReview.applied.length,held:phraseReview.held.length,failed:phraseReview.failed}:null,
     screening:plan.screening,reviewCount:plan.quality.review,manualCount:plan.quality.manual,markdown,blocks,truncated:false,
     mode:plan.options.mode,writing:plan.options,cueCount:plan.cues.length,total:plan.total,start:plan.from,end:plan.to,chars:plan.chars,model:cfg.model};
 }

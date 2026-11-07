@@ -7,7 +7,7 @@ const read=n=>fs.readFileSync(path.join(ext,n),'utf8');
 
 test('local voice capture is manifested as user-initiated MV3 and all assets exist',()=>{
  const manifest=JSON.parse(read('manifest.json'));
- assert.equal(manifest.version,'0.10.0');
+ assert.equal(manifest.version,JSON.parse(fs.readFileSync(path.join(__dirname,'../VERSION.json'),'utf8')).extension);
  for(const permission of ['tabCapture','offscreen'])assert.ok(manifest.permissions.includes(permission));
  assert.ok(manifest.host_permissions.includes('http://127.0.0.1/*'));
  for(const name of ['offscreen.html','offscreen.js','audio-processor.js','asr-background.js'])assert.ok(fs.existsSync(path.join(ext,name)));

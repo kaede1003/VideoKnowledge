@@ -91,7 +91,7 @@ class StreamingWhisperEngine(WhisperEngine):
                            'text':text,'language':detected,'languageProbability':round(probability,3),
                            'confidence':round(confidence,3),
                            'needsReview':bool(flags), 'qualityFlags':flags,
-                           'asrModel':self.model_name, 'qualityVersion':'0.7.1',
+                           'asrEngine':'faster-whisper','asrDevice':self.device,'asrModel':self.model_name, 'qualityVersion':'0.7.1',
                            'asrAvgLogprob':round(avg_logprob,4),'asrNoSpeechProb':round(no_speech,4),
                            'asrCompressionRatio':round(compression,4), 'verificationStatus':'machine_unverified',
                            'reviewReason':'；'.join(labels[f] for f in flags)})

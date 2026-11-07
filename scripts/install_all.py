@@ -34,13 +34,13 @@ PROFILES = {
 }
 
 
-def plan(profile: str, asr_model: str) -> list[dict]:
+def plan(profile: str, asr_model: str, asr_profile: str = 'keep') -> list[dict]:
     labels = {
         'runtime': '本地服务 Python 依赖 / WebSocket',
         'review': '上下文同音词校验组件',
         'video': '视频下载组件及 FFmpeg / Deno 检查',
         'speaker': '说话人分组组件、模型与静音加载检查',
-        'asr': f'预下载并加载 Whisper {asr_model}（CPU INT8检查，不修改运行设置）',
+        'asr': (f'ASR 引擎安装与加载检查：{asr_profile}（Qwen独立环境；通过后切换）' if asr_profile != 'keep' else f'检查当前ASR配置；旧配置预下载 Whisper {asr_model}'),
         'text': f'本地文字模型 {MODEL_NAMES["text"]}',
         'vision': f'本地视觉模型 {MODEL_NAMES["vision"]}',
     }
@@ -122,7 +122,7 @@ class Installer:
         self.json_path = self.out / ('install-' + stamp + '.json')
         self.log_path = self.out / ('install-' + stamp + '.log')
         self.log = self.log_path.open('w', encoding='utf-8', buffering=1)
-        self.report = {'installer_version': INSTALLER_VERSION, 'app_version': '0.8.0',
+        self.report = {'installer_version': INSTALLER_VERSION, 'app_version': '0.11.0',
                        'started_utc': stamp, 'profile': args.profile, 'steps': [],
                        'models': {}, 'all_selected_ready': False,
                        'scope': 'Installation checks; not real Edge/ASR/Ollama quality acceptance'}
@@ -340,7 +340,14 @@ class Installer:
     def asr(self):
         if not self.runtime_ok:
             raise InstallFailure('本地运行依赖未完成，Whisper 预下载暂缓。', code='DEPENDENCY', retryable=False)
-        # Uses the same Hugging Face cache and model identifier as the service; no config overwrite.
+        selected = getattr(self.args, 'asr_profile', 'keep')
+        if selected == 'keep' and (self.root / 'asr_profile.local.json').exists():
+            saved = json.loads((self.root / 'asr_profile.local.json').read_text(encoding='utf-8'))
+            selected = saved.get('profile', 'legacy')
+        if selected not in ('keep', 'legacy') or getattr(self.args, 'asr_profile', 'keep') == 'legacy':
+            self.command([sys.executable, 'scripts/setup_asr_profile.py', '--profile', selected], timeout=10800)
+            return {'selected_profile': selected, 'activation_after_load_check': True, 'accuracy_tested': False}
+        # Legacy mode reuses the pre-existing model/settings.
         self.command([sys.executable, 'scripts/prefetch_asr.py', '--model', self.args.asr_model], timeout=7200, attempts=3)
         return {'model': self.args.asr_model, 'model_load_verified': True, 'speech_accuracy_tested': False}
 
@@ -434,8 +441,15 @@ class Installer:
         return 130 if cancelled else 1 if failed else 0
 
     def run(self):
-        self.say('VideoKnowledge 统一安装器 ' + INSTALLER_VERSION + ' | 插件/服务仍为 0.8.0')
+        self.say('VideoKnowledge 统一安装器 ' + INSTALLER_VERSION + ' | 服务0.11.0 / ASR引擎预览')
         self.say('不清空笔记/模型；不关闭 TLS/重定向安全检查；不自动修改系统代理、DNS 或 hosts。')
+        if self.args.profile == 'asr' and getattr(self.args,'asr_profile','keep') == 'legacy':
+            if port_active(8765):
+                self.report['steps'].append({'name':'停止旧服务后切换','status':'failed','code':'ASR_RUNNING'})
+                return self.finish()
+            self.step('恢复旧ASR设置（不下载、不删除模型）', lambda: self.command(
+                [sys.executable,'scripts/setup_asr_profile.py','--profile','legacy'],timeout=30))
+            return self.finish()
         self.network_report()
         if self.args.profile == 'diagnose':
             self.step('Ollama 本机接口', lambda: self.client.request_json('GET', '/api/version', timeout=5))
@@ -456,7 +470,7 @@ class Installer:
         try:
             # Core deps first. Models are sequential, never several multi-GB pulls at once.
             for part in self.parts:
-                self.step(next(x['description'] for x in plan(self.args.profile, self.args.asr_model) if x['id'] == part), handlers[part])
+                self.step(next(x['description'] for x in plan(self.args.profile, self.args.asr_model, getattr(self.args,'asr_profile','keep')) if x['id'] == part), handlers[part])
         except KeyboardInterrupt:
             return self.finish(cancelled=True)
         return self.finish()
@@ -469,6 +483,7 @@ def parse_args(argv=None):
     p.add_argument('--yes', action='store_true', help='Explicit consent to missing WinGet packages and their agreements')
     p.add_argument('--skip-system-tools', action='store_true')
     p.add_argument('--ollama-url', default='http://127.0.0.1:11434')
+    p.add_argument('--asr-profile',choices=['keep','legacy','qwen17','qwen06','whisper-large','whisper-turbo'],default='keep')
     p.add_argument('--asr-model', default=os.environ.get('VKN_ASR_MODEL', 'small'))
     p.add_argument('--retries', type=int, choices=range(1, 7), default=3)
     p.add_argument('--idle-timeout', type=float, default=180, help='Seconds without stream bytes')
@@ -483,7 +498,7 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     if args.plan:
-        print(json.dumps({'installer': INSTALLER_VERSION, 'profile': args.profile, 'steps': plan(args.profile, args.asr_model),
+        print(json.dumps({'installer': INSTALLER_VERSION, 'profile': args.profile, 'steps': plan(args.profile, args.asr_model,args.asr_profile),
                           'automatic_system_changes': 'WinGet only with consent; no proxy/DNS/security changes'}, ensure_ascii=False, indent=2))
         return 0
     if os.name != 'nt' and args.profile != 'diagnose':

@@ -38,16 +38,15 @@ REM A previous copy of the local service must not occupy the same port.
 if errorlevel 1 goto port_busy
 
 echo.
-echo [INFO] VideoKnowledge ASR and LoRA local service v0.10.0
+echo [INFO] VideoKnowledge ASR and LoRA local service v0.11.0
 echo [INFO] Health URL: http://127.0.0.1:8765/health
-echo [INFO] ASR model: %VKN_ASR_MODEL%
-echo [INFO] ASR device: %VKN_ASR_DEVICE%
-echo [INFO] ASR compute: %VKN_ASR_COMPUTE%
+"%PYEXE%" "scripts\show_asr_profile.py"
+if errorlevel 1 goto failure
 echo [INFO] First transcription may download the selected model.
 echo [INFO] Stop: press Ctrl+C or run STOP_LOCAL_ASR.bat.
 echo.
 if exist ".venv\.vkn_stop_requested" del /q ".venv\.vkn_stop_requested" >nul 2>&1
-REM Runner enforces --ws websockets, bounded logs and fault traces.
+REM Runner records bounded logs and fault traces.
 "%PYEXE%" -u "scripts\run_local_service.py"
 set "SERVER_EXIT=%errorlevel%"
 if exist ".venv\.vkn_stop_requested" (

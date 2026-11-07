@@ -101,11 +101,15 @@ class StreamManager:
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
-                    self.mark('asr', 'job_failed', error=type(exc).__name__)
+                    code = getattr(exc, 'code', type(exc).__name__)
+                    self.mark('asr', 'job_failed', error=code)
                     LOG.exception('ASR job retained for retry')
-                    # If writing the failure itself fails, supervise() restarts the
-                    # worker, not the database or the Python/Ollama processes.
-                    self.store.fail(sid, type(exc).__name__ + ': local recognition failed; see service log')
+                    # No failed call advances the audio cursor or changes engine.
+                    hints = {'ASR_RUNTIME_MISSING':'Qwen环境未安装；运行 INSTALL_ALL.bat -Profile asr -AsrProfile qwen17',
+                             'ASR_CUDA_UNAVAILABLE':'Qwen CUDA不可用；原音保留，不自动回退CPU或旧模型',
+                             'ASR_OUTPUT_TRUNCATED':'模型输出到达上限，原音保留；请尝试较短识别窗口',
+                             'ASR_WORKER_TIMEOUT':'Qwen识别等待超时，原音保留；检查本机资源负载'}
+                    self.store.fail(sid, code + ': ' + hints.get(code,'local recognition failed; see service log'))
                 progressed = True
             if not progressed:
                 self.wake.clear()

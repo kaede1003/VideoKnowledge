@@ -1,3 +1,29 @@
+# 0.11.0 · ASR adapter preview
+
+- Added opt-in native Qwen3-ASR/ForcedAligner worker, isolated runtime, engine provenance, timing validation and explicit rollback.
+- Integrated setup in existing INSTALL_ALL; activate only after target runtime checks; preserved old settings/notes.
+- Added local short-audio evaluation tool; real model accuracy and Windows/CUDA acceptance remain pending.
+- Did not fix summary timeout, complete translation or speaker-name reasoning in this release.
+
+# 变更记录
+
+## 0.10.2 · git-r7
+
+- 旧源码复现切换页面前点击完整阅读可开错视频；同步隔离、代号防迟到加载、保存快照及来源校验。
+- 预览签名包含视频与完整正文哈希；新文稿绑定来源，阅读/复制/导出沿用选中快照。
+- 删除单项下载冗余max_downloads=1，防止直接extract_info将首项完成视为错误。
+- 失败分类、匿名重试、显式单次YouTube会话重试、可选权限撤销。默认匿名，凭据只在内存与子进程管道，不保存文件。
+- 缓存失败不显示仍在下载的进度；20MiB传输量不当作已保存。原有效缓存TTL不延长。
+- 构造测试和真实DOM验收；Windows/YouTube真实下载与模型未实测。未改变100秒长任务/ASR模型。
+
+# 0.10.1 / git-r6
+
+- 实际字幕证据下的英文词拼写校正，不再只限等长汉字；保留画面英文行。
+- 已授权字幕采样与视觉推理分离，有限内存队列、跳过状态、停止释放。
+- 生成前复核已存字幕，无证据不凭名称常识替换。
+- 文字稿短单元逐项校验，失败项有限标点位置重试，基础排版回退保留全部字词。
+- 无新依赖/权限，原文/数字/否定保护、移除过滤的行为保留。详见docs/UPGRADE_V0101.md与qa/V0101_TEST_REPORT.md。
+
 # 0.10.0 · 2026-11-07 · git-r5
 
 - 活动字幕优先、已授权视频底部两帧本机视觉后备；按会话/时间/边界核对同音局部词，独立修订可撤销。

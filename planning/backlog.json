@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "basis": "0.10.0/git-r5；删除过滤，新增字幕辅助/上下文/布局；真实验收另列",
+  "basis": "0.10.2/git-r7：来源隔离、下载错误与单次授权重试；真实验收另列",
   "tasks": [
     {
       "id": "VK-001",
@@ -586,6 +586,90 @@
       ],
       "deliverable": "0.10.0实现、构造回归、升级说明",
       "notes": "代码和模拟测试完成；真实Edge/字幕/音频/LLM待目标验收"
+    },
+    {
+      "id": "VK-039",
+      "priority": "P1",
+      "title": "字幕英文拼写与独立采样队列",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-046"
+      ],
+      "deliverable": "0.10.1实现、回归、升级说明",
+      "notes": "代码/合成DOM已实现；真实模型与Edge准确率待验收。"
+    },
+    {
+      "id": "VK-040",
+      "priority": "P1",
+      "title": "文字稿短单元与标点锚点重试",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-047"
+      ],
+      "deliverable": "0.10.1实现、回归、升级说明",
+      "notes": "代码/合成DOM已实现；真实模型与Edge准确率待验收。"
+    },
+    {
+      "id": "VK-041",
+      "priority": "P0",
+      "title": "视频切换与阅读来源隔离",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-048"
+      ],
+      "deliverable": "0.10.2代码、单元/DOM回归、升级与安全说明",
+      "notes": "代码与合成测试完成；目标Windows/Edge/真实下载仍待验收，不清除用户历史数据"
+    },
+    {
+      "id": "VK-042",
+      "priority": "P1",
+      "title": "单视频下载完成信号与错误分类",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-049"
+      ],
+      "deliverable": "0.10.2代码、单元/DOM回归、升级与安全说明",
+      "notes": "代码与合成测试完成；目标Windows/Edge/真实下载仍待验收，不清除用户历史数据"
+    },
+    {
+      "id": "VK-043",
+      "priority": "P1",
+      "title": "YouTube单次会话授权重试",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-050"
+      ],
+      "deliverable": "0.10.2代码、单元/DOM回归、升级与安全说明",
+      "notes": "代码与合成测试完成；目标Windows/Edge/真实下载仍待验收，不清除用户历史数据"
+    },
+    {
+      "id": "VK-044",
+      "priority": "P0",
+      "title": "Qwen3-ASR可选接入、隔离安装与真实音频验收",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-001"
+      ],
+      "acceptance": [
+        "AC-051"
+      ],
+      "deliverable": "原生Qwen适配、同一安装入口、词级对齐、引擎诊断、评测脚本与安全回退",
+      "notes": "代码及模拟/真实stdio测试完成；未下载或运行真实Qwen权重，Windows RTX5080性能/准确率待验收；不得假称已提升准确率"
     }
   ]
 }

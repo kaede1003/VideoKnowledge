@@ -1,7 +1,7 @@
 """Explicit, owner-scoped public-video download cache with a 72-hour TTL.
 
 Only this module's UUID directories are managed. Notebook/model/ASR files are
-never deleted. This is NOT a DRM downloader and does not read browser cookies.
+never deleted. Optional per-job YouTube session is explicitly supplied, memory-only. No DRM bypass.
 """
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import asyncio
 from contextlib import suppress
 import hashlib
 import importlib.util
+import importlib.metadata
 import json
 import logging
 import os
@@ -27,6 +28,9 @@ import uuid
 
 from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse
+
+from .video_auth import clean_cookies
+from .video_errors import ERRORS
 
 TTL_SECONDS = 72 * 60 * 60
 CLEAN_INTERVAL = 15 * 60
@@ -83,7 +87,10 @@ def normalize_video_url(raw):
 
 def availability():
     installed = importlib.util.find_spec('yt_dlp') is not None
-    return {'installed': installed, 'ffmpeg': bool(shutil.which('ffmpeg')),
+    def version(name):
+        try:return importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:return ''
+    return {'login_transfer':True,'version':version('yt-dlp'),'ejs_version':version('yt-dlp-ejs'),'installed': installed, 'ffmpeg': bool(shutil.which('ffmpeg')),
             'javascript_runtime': 'deno' if shutil.which('deno') else 'node' if shutil.which('node') else '',
             'retention_hours': 72, 'max_video_bytes': MAX_BYTES, 'max_total_bytes': TOTAL_BYTES,
             'message': ('下载组件已安装；不代表目标网站一定允许下载' if installed else
@@ -266,19 +273,7 @@ def public_row(row):
 
 
 def friendly_error(code):
-    return {
-        'VIDEO_DEPENDENCY': '请运行 INSTALL_VIDEO_CACHE.bat 安装下载组件，然后重启本地服务',
-        'VIDEO_SOURCE_UNAVAILABLE': '来源拒绝下载、需要登录或没有可用格式；不会读取浏览器登录信息或绕过保护',
-        'VIDEO_LIVE': '本版只缓存已发布的点播视频，不下载直播或预约视频',
-        'VIDEO_SPACE': '磁盘空间不足或达到缓存容量限制；已有未到期视频保留',
-        'VIDEO_SIZE': '本视频超过4 GiB限制，已停止并清除本轮未完成文件',
-        'VIDEO_TIMEOUT': '下载超过本轮2小时上限；已停止，笔记保留',
-        'VIDEO_OUTPUT': '下载没有生成完整且受支持的视频文件，未报告成功',
-        'VIDEO_RUNTIME': 'YouTube解析需要本机JavaScript运行时；安装受支持的Node.js或Deno后重启服务',
-        'VIDEO_FFMPEG': '目标视频需要合并音视频，请安装ffmpeg并加入PATH后重试',
-        'VIDEO_WORKER': '本次下载失败；可以检查下载依赖及来源访问情况后重试',
-    }.get(code, '本次视频缓存任务失败；未修改笔记或已有缓存')
-
+    return ERRORS.get(code, ERRORS['VIDEO_WORKER'])
 
 async def terminate_owned(proc):
     """Terminate only this job's child process group, never global Python/Ollama."""
@@ -314,6 +309,7 @@ class CacheManager:
         self.semaphore = asyncio.Semaphore(1)
         self.janitor = None
         self.tokens = {}
+        self.credentials = {}  # per-attempt; never SQLite, logs, URLs or command argv
         self.closing = False
 
     def start(self):
@@ -341,10 +337,13 @@ class CacheManager:
             task.cancel()
         await asyncio.gather(*list(self.tasks.values()), return_exceptions=True)
         self.tokens.clear()
+        self.credentials.clear()
 
-    async def create(self, owner, url, title='', consent=False):
+    async def create(self, owner, url, title='', consent=False, youtube_cookies=None, login_consent=False):
         if consent is not True:
             raise ValueError('VIDEO_CONSENT: 请先确认你有权下载该视频，并同意72小时自动清理')
+        url = normalize_video_url(url)
+        cookies = clean_cookies(youtube_cookies,url,login_consent) if youtube_cookies is not None else None
         if self.closing:
             raise ValueError('VIDEO_CLOSING: 服务正在退出')
         if self.runner == self._download and not availability()['installed']:
@@ -354,10 +353,16 @@ class CacheManager:
             raise ValueError('VIDEO_SPACE: ' + friendly_error('VIDEO_SPACE'))
         row, new = self.store.create(owner, url, title)
         if new:
+            if cookies:self.credentials[row['id']]={'cookies':cookies,'expires':time.monotonic()+600}
             task = asyncio.create_task(self._run(row['id']))
             self.tasks[row['id']] = task
             task.add_done_callback(lambda done, ident=row['id']: self.tasks.pop(ident, None))
-        return public_row(row)
+        return {**public_row(row),'auth_mode':'youtube_session' if cookies and new else 'anonymous_or_existing'}
+
+    async def retry(self, ident, owner, youtube_cookies=None, login_consent=False):
+        row=self.store.get(ident,owner)
+        if row['state'] in ACTIVE or (row['state']=='ready' and row['expires']>self.store.clock()):raise ValueError('VIDEO_BUSY: 当前缓存正在处理或已完成')
+        return await self.create(owner,row['url'],row['title'],True,youtube_cookies,login_consent)
 
     async def _run(self, ident):
         try:
@@ -375,12 +380,12 @@ class CacheManager:
             raise
         except Exception as exc:
             code = 'VIDEO_TIMEOUT' if isinstance(exc, asyncio.TimeoutError) else str(exc).split(':', 1)[0]
-            if code not in {'VIDEO_DEPENDENCY', 'VIDEO_SOURCE_UNAVAILABLE', 'VIDEO_LIVE', 'VIDEO_SPACE',
-                            'VIDEO_SIZE', 'VIDEO_TIMEOUT', 'VIDEO_OUTPUT', 'VIDEO_RUNTIME', 'VIDEO_FFMPEG'}:
+            if code not in ERRORS:
                 code = 'VIDEO_WORKER'
             if ident not in self.cancelled:
                 self.store.update(ident, state='failed', error=code + ': ' + friendly_error(code))
         finally:
+            self.credentials.pop(ident,None)
             await terminate_owned(self.processes.pop(ident, None))
             if ident in self.cancelled or self.closing:
                 self.store.update(ident, state='cancelled', error='VIDEO_CANCELLED: 已取消本次下载；听写和笔记不受影响')
@@ -393,6 +398,8 @@ class CacheManager:
             self.cancelled.discard(ident)
 
     async def _download(self, row):
+        auth=self.credentials.pop(row['id'],None)
+        if auth and time.monotonic()>=auth['expires']:raise ValueError('VIDEO_AUTH_EXPIRED')
         kwargs = {'cwd': str(Path(__file__).resolve().parents[1])}
         if os.name == 'nt':
             import subprocess
@@ -404,7 +411,10 @@ class CacheManager:
             stderr=asyncio.subprocess.DEVNULL, limit=65536, **kwargs)
         self.processes[row['id']] = proc
         spec = {'url': row['url'], 'directory': str(self.store.directory(row['id'])), 'max_bytes': MAX_BYTES}
+        if auth:
+            spec.update(youtube_cookies=auth.pop('cookies'),login_consent=True)
         proc.stdin.write((json.dumps(spec) + '\n').encode('utf-8'))
+        spec.clear();auth=None
         await proc.stdin.drain()
         proc.stdin.close()
         filename, error, counter = '', '', 0
@@ -468,6 +478,7 @@ class CacheManager:
         with suppress(OSError, ValueError):
             self.store.purge_files(ident)
         self.cancelled.discard(ident)
+        self.credentials.pop(ident,None)
         return public_row(self.store.get(ident, owner))
 
     def file_token(self, ident, owner):
@@ -516,11 +527,11 @@ def attach_video_cache_routes(app):
             raise HTTPException(415, 'VIDEO_JSON: 必须使用JSON请求')
         return origin
 
-    async def body(request):
+    async def body(request,limit=8192):
         raw = bytearray()
         async for part in request.stream():
             raw.extend(part)
-            if len(raw) > 8192:
+            if len(raw) > limit:
                 raise HTTPException(413, 'VIDEO_BODY: 请求过大')
         try:
             value = json.loads(raw)
@@ -544,6 +555,15 @@ def attach_video_cache_routes(app):
             return await manager().create(who, data.get('url'), data.get('title', ''), data.get('consent', False))
         except ValueError as exc:
             raise HTTPException(400, str(exc))
+
+
+    @app.post('/media-cache/{ident}/retry')
+    async def video_retry(ident: str, request: Request):
+        who=owner(request);data=await body(request,128*1024)
+        try:
+            return await manager().retry(ident,who,data.get('youtube_cookies'),data.get('login_consent',False))
+        except KeyError:raise HTTPException(404,'VIDEO_NOT_FOUND')
+        except ValueError as exc:raise HTTPException(400,str(exc))
 
     @app.post('/media-cache/{ident}/cancel')
     async def video_cancel(ident: str, request: Request):

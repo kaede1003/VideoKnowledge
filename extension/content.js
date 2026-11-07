@@ -77,7 +77,7 @@
   const wrap=document.createElement('div');wrap.className='outer';
   wrap.innerHTML=`    <button class="bubble" id="vkn-bubble" title="打开视频笔记">笔记</button>
     <section class="panel" id="vkn-panel" hidden aria-label="视频笔记">
-      <header><div class="headtitle"><strong>视频笔记 <small class="version">0.10.0</small></strong></div><button id="vkn-settings" class="icon-btn" title="模型与听写设置" aria-label="设置">⚙</button><button class="close" id="vkn-close" aria-label="收起面板，不停止采集" title="收起面板，不停止采集">×</button></header>
+      <header><div class="headtitle"><strong>视频笔记 <small class="version">0.11.0</small></strong></div><button id="vkn-settings" class="icon-btn" title="模型与听写设置" aria-label="设置">⚙</button><button class="close" id="vkn-close" aria-label="收起面板，不停止采集" title="收起面板，不停止采集">×</button></header>
       <div class="body">
         <h2 class="video" id="vkn-title">正在检测视频…</h2>
         <div class="meta-line"><span><b id="vkn-count">0</b> 条记录</span><span id="vkn-time">00:00</span><span id="vkn-doc" hidden>本地</span><span id="vkn-source" hidden></span></div>
@@ -147,7 +147,7 @@
   shadow.appendChild(wrap);
   (document.documentElement||document.body).appendChild(host);
 
-  const state={liveLimit:30,progress:null,stopRequested:false,stopAllBusy:false,asrActionId:0,loraActionId:0,aiRequestId:null,asrDraining:false,session:null,key:'',full:[],active:true,open:false,lastFullKey:'',lastPageUrl:'',video:null,settings:{},fetching:false,working:false,summaryBusy:false,summaryStartedAt:0,summaryNote:'',lastAiCount:0,lastAiAt:0,saveTimer:null,refreshTimer:null,queued:[],lastTick:0,tips:'',lastError:'',source:'live',switching:false,lastSettingsRead:0,lastAsrStatusRead:0,asrRunning:false,asrPaused:false,asrBusy:false,asrNote:'',loraRunning:false,loraProcessing:false,loraBusy:false,loraRule:null,loraId:null,loraTabId:null,loraStatus:null,loraNote:'',loraPlanError:''};
+  const state={navigationEpoch:0,navigationPending:false,liveLimit:30,progress:null,stopRequested:false,stopAllBusy:false,asrActionId:0,loraActionId:0,aiRequestId:null,asrDraining:false,session:null,key:'',full:[],active:true,open:false,lastFullKey:'',lastPageUrl:'',video:null,settings:{},fetching:false,working:false,summaryBusy:false,summaryStartedAt:0,summaryNote:'',lastAiCount:0,lastAiAt:0,saveTimer:null,refreshTimer:null,queued:[],lastTick:0,tips:'',lastError:'',source:'live',switching:false,lastSettingsRead:0,lastAsrStatusRead:0,asrRunning:false,asrPaused:false,asrBusy:false,asrNote:'',loraRunning:false,loraProcessing:false,loraBusy:false,loraRule:null,loraId:null,loraTabId:null,loraStatus:null,loraNote:'',loraPlanError:''};
   const call = (type,args={}) => new Promise((resolve,reject)=>{
     const limit={'VKN_ASR_START':15000,'VKN_ASR_STOP':9000,'VKN_ASR_STOP_ALL':10000,'VKN_ASR_STATUS_QUERY':4000,'VKN_ASR_PAUSE':6000,'VKN_ASR_RESUME':6000,'VKN_LORA_STOP':9000}[type];
     const timer=limit?setTimeout(()=>reject(Error('操作未在时限内确认。请暂停视频，再点「停止全部采集」；必要时暂时禁用扩展。')),limit):null;
@@ -158,15 +158,12 @@
       resolve(response.data);
     });} catch(e){clearTimeout(timer);reject(e);}
   });
-  const vimeoId=url=>url.pathname.match(/^\/(\d+)/)?.[1]||'';
-  function getKey(){
-    const u=new URL(location.href),h=u.hostname;
-    if(h.includes('youtube.com')) {
-      const v=u.searchParams.get('v');return v ? 'yt:'+v : (u.pathname.startsWith('/shorts/') ? 'ytshort:'+u.pathname.split('/')[2] : '');
-    }
-    if(h.includes('bilibili.com')) {const m=u.pathname.match(/\/video\/(BV[A-Za-z0-9]+)/i);return m?'bili:'+m[1]+':p'+(u.searchParams.get('p')||'1'):'';}
-    if(h.includes('vimeo.com'))return vimeoId(u)?'vimeo:'+vimeoId(u):'';
-    return document.querySelector('video')?'web:'+u.origin+u.pathname:'';
+  function getKey(){return C.pageKey(location.href,!!document.querySelector('video'));}
+  function currentSession(){
+    const key=getKey();
+    if(key!==state.key){void switchVideo(key);return null;}
+    if(state.switching||state.navigationPending||!state.session||state.session.key!==key)return null;
+    return state.session;
   }
   function getVideo(){
     const all=[...document.querySelectorAll('video')];
@@ -180,14 +177,17 @@
     return C.normalizeWhitespace(document.querySelector('meta[property="og:title"]')?.content||document.title).replace(/\s*[-|_]\s*(YouTube|哔哩哔哩|bilibili).*$/i,'')||'未命名视频';
   }
   function newSession(key){return {v:1,key,title:getTitle(),url:location.href,createdAt:new Date().toISOString(),updatedAt:'',duration:0,segments:[],aiMarkdown:'',aiGeneratedAt:'',aiCueCount:0,summaries:[],pendingSummary:[],speakerNames:{},speakerOverrides:{},textOverrides:{},documents:[],activeDocumentId:'',writing:C.normalizeWriting({correctPhrases:true}),captionOptions:{enabled:true,frames:true},captionObservations:[],captionReviews:{},viewPreferences:{}};}
+  async function persistSnapshot(s){
+    if(!s)return false;
+    try{await call('VKN_SAVE_SESSION',{session:structuredClone(s)});return true;}
+    catch(e){if(state.session===s)$('vkn-save-status').textContent='保存失败：'+e.message.slice(0,38);return false;}
+  }
   async function saveNow(){
     clearTimeout(state.saveTimer);state.saveTimer=null;
-    const s=state.session;if(!s)return;
-    try {
-      const snap={...s,segments:s.segments.map(x=>({...x}))};
-      await call('VKN_SAVE_SESSION',{session:snap});
-      if(state.key===s.key)$('vkn-save-status').textContent='已自动保存';return true;
-    }catch(e){if(state.key===s.key)$('vkn-save-status').textContent='保存失败：'+e.message.slice(0,38);return false;}
+    const s=currentSession();if(!s)return false;
+    const saved=await persistSnapshot(s);
+    if(saved&&state.session===s)$('vkn-save-status').textContent='已自动保存';
+    return saved;
   }
   function scheduleSave(){
     $('vkn-save-status').textContent='保存中…';clearTimeout(state.saveTimer);
@@ -196,35 +196,42 @@
   function showStatus(msg,style=''){$('vkn-status').textContent=msg;$('vkn-status').className='status '+style;}
   function setOpen(open){state.open=!!open;$('vkn-panel').hidden=!state.open;$('vkn-bubble').hidden=state.open;if(open)render();}
   async function switchVideo(key){
-    if(state.switching || key===state.key)return;
-    state.switching=true;
-    try {
-      if(state.session)await saveNow();
-      if(state.loraRunning && key!==state.key){state.loraRunning=false;call('VKN_LORA_STOP').catch(()=>{});}
-      if(state.asrRunning && key!==state.key){
-        state.asrRunning=false;
-        call('VKN_ASR_STOP').catch(()=>{});
-      }
-      if(state.aiRequestId){const old=state.aiRequestId;state.aiRequestId=null;state.working=false;call('VKN_AI_CANCEL',{requestId:old}).catch(()=>{});}
-      resetCaptionRuntime();
-      state.liveLimit=30;state.progress=null;state.key=key;state.lastFullKey='';state.full=[];state.lastError='';state.tips='';state.source='live';state.queued=[];state.summaryStartedAt=0;state.summaryNote='';
-      state.session=key? (await call('VKN_GET_SESSION',{key})||newSession(key)):null;
+    if(key===state.key&&(state.switching||state.session))return;
+    const epoch=++state.navigationEpoch,previous=state.session;
+    const pageUrl=location.href;
+    // Detach synchronously, before storage/network awaits. A cannot masquerade as B.
+    clearTimeout(state.saveTimer);state.saveTimer=null;
+    state.session=null;state.key=key;state.switching=true;state.navigationPending=false;
+    if(state.loraRunning||state.loraBusy)call('VKN_LORA_STOP').catch(()=>{});
+    if(state.asrRunning||state.asrBusy)call('VKN_ASR_STOP').catch(()=>{});
+    if(state.aiRequestId)call('VKN_AI_CANCEL',{requestId:state.aiRequestId}).catch(()=>{});
+    state.aiRequestId=null;state.working=false;state.summaryBusy=false;
+    state.asrActionId++;state.loraActionId++;state.asrRunning=false;state.asrBusy=false;state.asrPaused=false;
+    state.loraRunning=false;state.loraBusy=false;state.loraProcessing=false;state.stopRequested=true;
+    state.asrDraining=false;state.asrNote='';state.lastTick=0;state.lastAsrStatusRead=0;
+    resetCaptionRuntime();
+    state.liveLimit=30;state.progress=null;state.lastFullKey='';state.full=[];state.lastError='';state.tips='';state.source='live';state.queued=[];state.summaryStartedAt=0;state.summaryNote='';
+    host.style.display=key?'block':'none';render();
+    try{
+      // Old snapshot always saves under its own key, never under the new page key.
+      if(previous)await persistSnapshot(previous);
+      const loaded=key?await call('VKN_GET_SESSION',{key}):null;
+      if(epoch!==state.navigationEpoch)return;
+      if(getKey()!==key){void switchVideo(getKey());return;}
+      if(loaded&&(loaded.key!==key||(loaded.url&&C.pageKey(loaded.url)!==key)))throw Error('SESSION_SOURCE_MISMATCH：载入记录与当前视频不符，已阻止显示旧材料。');
+      state.session=key?(loaded||newSession(key)):null;
       if(state.session){
-        state.session.title=getTitle();state.session.url=location.href;
-        if(state.session.aiMarkdown && state.session.aiCueCount===undefined)state.session.aiCueCount=state.session.segments.length;
+        state.session.title=getTitle();state.session.url=pageUrl;
         state.session.summaries ||= [];state.session.pendingSummary ||= [];
         state.lastAiCount=Number(state.session.aiCueCount)||0;
         const d=Date.parse(state.session.aiGeneratedAt);state.lastAiAt=Number.isFinite(d)?d:0;
       }
       applyWritingControls();
-      host.style.display=key?'block':'none';
-      render();
-
-    }catch(e){showStatus('无法载入视频记录：'+e.message,'error');}
-    finally{state.switching=false;}
+    }catch(e){if(epoch===state.navigationEpoch){state.session=null;state.lastError='无法载入当前视频记录：'+e.message;}}
+    finally{if(epoch===state.navigationEpoch){state.switching=false;render();}}
   }
   function append(items){
-    if(!state.session||!items?.length||(!state.active&&!items.some(x=>x.source==='local-asr')))return;
+    if(!currentSession()||!items?.length||(!state.active&&!items.some(x=>x.source==='local-asr')))return;
     const current=state.session,oldKeys=new Set(current.segments.map(C.cueIdentity));
     const merged=C.mergeCues(current.segments,items),fresh=merged.filter(x=>!oldKeys.has(C.cueIdentity(x)));
     current.segments=merged;current.pendingSummary ||= [];
@@ -247,7 +254,7 @@
   function onTick(){
     const key=getKey();
     if(key!==state.key){switchVideo(key);return;}
-    if(!state.session)return;
+    if(state.switching||state.navigationPending||!state.session)return;
     const v=getVideo();state.video=v;bindVideoEvents(v);
     state.session.title=getTitle();
     if(v){
@@ -303,7 +310,7 @@
         }
       }
       if(!md)md=C.buildOfflinePeriodSummary(C.cuesWithSpeakers(ss,snapshot),{title:ss.title,url:ss.url,filter:C.normalizeFilter(ss.contentFilter)});
-      if(state.key!==ss.key)return;
+      if(state.session!==ss||getKey()!==ss.key)return;
       const sorted=C.sortedCues(snapshot);
       ss.summaries||=[];
       ss.summaries.push({start:sorted[0].time,end:sorted[sorted.length-1].time,
@@ -387,10 +394,16 @@
     $('vkn-preview').scrollTop=0;
   }
   function openFullReport(){
-    if(!state.session||!C.activeDocument(state.session))return;
-    const win=window.open('','_blank');
-    if(!win){showStatus('新窗口被浏览器阻止，可使用“网页 HTML”导出后阅读完整文档。','error');return;}
-    win.opener=null;win.document.open();win.document.write(C.resultHtml(state.session));win.document.close();
+    const ss=currentSession();if(!ss){showStatus('正在切换或载入当前视频，未打开旧视频的材料。');return;}
+    const selected=C.activeDocument(ss);if(!selected)return;
+    try{
+      // Freeze precisely the displayed selection before opening the new window.
+      const snapshot=structuredClone({key:ss.key,title:ss.title,url:ss.url}),doc=structuredClone(selected);
+      const html=C.resultHtml(snapshot,doc);
+      const win=window.open('','_blank');
+      if(!win){showStatus('新窗口被浏览器阻止，可使用网页 HTML 导出。','error');return;}
+      win.opener=null;win.document.open();win.document.write(html);win.document.close();
+    }catch(e){showStatus(e.message,'error');}
   }
   function renderPeriodSummaries(){
     const el=$('vkn-summaries');el.replaceChildren();
@@ -471,7 +484,11 @@
     $('vkn-ai-config-hint').textContent=ac.configured?
       `深度整理 ${ac.version||''}：${ac.provider==='ollama'?'本地 Ollama':'自定义接口'} / ${ac.model||''} · ${ac.saved?'使用已保存的摘要配置':'复用本地默认 / 听写文字模型'}`:
       (ac.error||'深度整理配置尚未就绪，请打开模型设置。');
-    if(!s){showStatus('当前页面没有可识别的视频');return;}
+    if(!s){
+      renderResult();$('vkn-live').replaceChildren();$('vkn-summaries').replaceChildren();$('vkn-highlights').replaceChildren();$('vkn-speaker-list').replaceChildren();
+      $('vkn-live-count').textContent='0条';
+      showStatus(state.lastError||(state.switching?'正在载入当前视频记录…':'当前页面没有可识别的视频'),state.lastError?'error':'');return;
+    }
     if(state.lastError)showStatus(state.lastError,'error');
     else if(state.working)showStatus('正在生成'+C.WRITING_MODES[formWriting().mode]+'，可取消；原始记录和旧结果保留。');
     else if(state.asrRunning&&state.asrPaused)showStatus('听写已暂停 · '+s.segments.length+'条已保留。');
@@ -512,9 +529,9 @@
     state.session.writing=formWriting();updateWritingHint();scheduleSave();
   }
   function renderResult(){
-    const s=state.session,docs=C.documentHistory(s||{}),d=C.activeDocument(s||{}),picker=$('vkn-document-picker');
+    const s=(!state.switching&&!state.navigationPending&&state.session?.key===getKey())?state.session:null,docs=C.documentHistory(s||{}),d=C.activeDocument(s||{}),picker=$('vkn-document-picker');
     $('vkn-result-section').hidden=!d;
-    const signature=docs.map(x=>x.id).join('|');
+    const signature=(s?.key||'')+'|'+docs.map(x=>C.documentSignature(s,x)).join('|');
     if(picker.dataset.signature!==signature){
       picker.replaceChildren();
       for(let i=docs.length-1;i>=0;i--){const x=docs[i],option=document.createElement('option');option.value=x.id;
@@ -523,7 +540,7 @@
     }
     picker.hidden=docs.length<2;if(d)picker.value=d.id;
     for(const id of ['vkn-view-report','vkn-read-full','vkn-md','vkn-html','vkn-txt','vkn-copy','vkn-open-report'])$(id).disabled=!d;
-    const preview=$('vkn-preview'),signature2=d?d.id+'|'+d.markdown.length:'empty';
+    const preview=$('vkn-preview'),signature2=C.documentSignature(s||{},d);
     if(preview.dataset.signature!==signature2){
       preview.innerHTML=d?C.markdownToSafeHtml(d.markdown.slice(0,26000)):'<p class="empty">你的整理结果会显示在这里。</p>';
       preview.dataset.signature=signature2;
@@ -536,7 +553,7 @@
   }
 
   async function runAi(auto=false){
-    if(state.working||!state.session)return;
+    if(state.working||!currentSession())return;
     pauseCaptionWork();
     const captured=state.session,snapshot=C.cuesWithSpeakers(captured),writing=formWriting();
     let plan;try{plan=C.prepareWriting(snapshot,writing,6000,130000,captured);}catch(e){state.lastError=e.message;render();return;}
@@ -547,17 +564,22 @@
     try {
       await refreshSettings();if(state.aiRequestId!==requestId)return;
       if(!state.settings.configured)throw Error(state.settings.error||'AI_CONFIG_STATUS：请在设置页验证模型连接。');
-      const res=await call('VKN_AI_GENERATE',{requestId,cues:snapshot,writing,meta:{title:captured.title,url:captured.url}});
-      if(state.key!==captured.key||state.aiRequestId!==requestId)return;
-      const doc=C.cleanDocument({id:'doc-'+requestId,markdown:res.markdown,options:writing,createdAt:new Date().toISOString(),
+      const res=await call('VKN_AI_GENERATE',{requestId,cues:snapshot,writing,meta:{title:captured.title,url:captured.url,captionObservations:captured.captionOptions?.enabled===false?[]:(CP?.cleanObservations(captured.captionObservations)||[])}});
+      if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;
+      for(const [id,review] of Object.entries(res.captionReviews||{})){
+        const raw=state.session.segments.find(c=>c.id===id),old=state.session.captionReviews?.[id];
+        if(!raw||review.source!==String(raw.original||raw.text)||old?.status==='dismissed'||state.session.textOverrides?.[id])continue;
+        const clean=C.cleanCaptionReview(review);if(clean&&!(old?.status==='applied'&&clean.status==='agrees')){state.session.captionReviews||={};state.session.captionReviews[id]=clean;}
+      }
+      const doc=C.cleanDocument({id:'doc-'+requestId,sourceKey:captured.key,sourceUrl:captured.url,sourceTitle:captured.title,markdown:res.markdown,options:writing,createdAt:new Date().toISOString(),
         cueCount:res.cueCount??plan.cues.length,totalAtGeneration:snapshot.length,start:res.start??plan.from,end:res.end??plan.to,blocks:res.blocks,model:res.model||state.settings.model,audit:res.audit,phraseReview:res.phraseReview,screening:res.screening,reviewCount:res.reviewCount,manualCount:res.manualCount});
       if(!doc)throw Error('模型没有返回可保存的正文。');
       captured.documents=C.documentHistory(captured);captured.documents.push(doc);C.activateDocument(captured,doc.id);
       state.lastAiAt=Date.now();state.lastAiCount=captured.segments.length;
-      const saved=await saveNow();state.tips=C.WRITING_MODES[writing.mode]+(saved?'已生成并保存，旧结果和原文保留。':'已生成，但自动保存失败，请立即导出备份。');
+      const saved=await saveNow();if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;state.tips=C.WRITING_MODES[writing.mode]+(saved?'已生成并保存，旧结果和原文保留。':'已生成，但自动保存失败，请立即导出备份。');
       state.working=false;state.progress=null;render();jumpToReport();
     }catch(e){
-      if(state.aiRequestId!==requestId||String(e.message).includes('AI_CANCELLED')){return;}
+      if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId||String(e.message).includes('AI_CANCELLED')){return;}
       state.lastError='生成失败：'+e.message+'。原始记录与旧结果保留。';
     }finally{if(state.aiRequestId===requestId){state.aiRequestId=null;state.working=false;state.progress=null;}render();}
   }
@@ -565,7 +587,7 @@
     const blob=new Blob(['\uFEFF',text],{type:mime});const link=document.createElement('a');const href=URL.createObjectURL(blob);link.href=href;link.download=name;link.style.display='none';shadow.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),60000);
   }
   function exportDoc(type){
-    if(!state.session||!C.activeDocument(state.session))return;
+    if(!currentSession()||!C.activeDocument(state.session))return;
     const ss=state.session,d=C.activeDocument(ss),data=type==='html'?C.resultHtml(ss):type==='txt'?C.resultText(ss):C.resultMarkdown(ss);
     const name=(ss.title||'视频')+'_'+C.WRITING_MODES[d.mode]+(d.options.creative?'_改写':'')+'_'+d.id.slice(-8);
     downloadFile(data,type==='html'?'text/html;charset=utf-8':type==='txt'?'text/plain;charset=utf-8':'text/markdown;charset=utf-8',
@@ -573,9 +595,9 @@
     $('vkn-export-menu').open=false;showStatus('当前整理结果已交给浏览器下载。','ok');
   }
   async function loadFile(file){
-    if(!file||!state.session)return;
+    const captured=currentSession();if(!file||!captured)return;
     if(file.size>4_000_000){showStatus('字幕文件超过4MB，请使用较小文件','error');return;}
-    const text=await file.text();const cues=C.parseSrtVtt(text);
+    const text=await file.text();if(currentSession()!==captured){showStatus('已切换视频，未将字幕导入其他视频。');return;}const cues=C.parseSrtVtt(text);
     if(!cues.length){showStatus('未解析到字幕：请选择标准SRT或VTT文件','error');return;}
     const prev=state.session.segments.length;
     append(cues);showStatus(`成功导入 ${state.session.segments.length-prev} 条字幕（去重后）。`,'ok');
@@ -595,21 +617,23 @@
   });
   for(const id of ['vkn-stage-details','vkn-highlights-details','vkn-speakers'])$(id).addEventListener('toggle',render);
   $('vkn-video-cache').addEventListener('click',async()=>{
-    if(!state.session)return;
-    const allowed=confirm('仅保存你有权下载的公开视频，不读取网站登录信息、不处理受保护视频。\n视频完成后保留72小时，到期自动清理本地缓存；笔记不删除。\n默认最高720p、单个视频不超过4GiB。是否开始？');
+    if(!currentSession())return;
+    const cacheSession=state.session,cacheUrl=location.href;
+    const allowed=confirm('仅保存你有权下载的公开视频；本次匿名下载，不读取登录信息、不处理受保护视频。\n视频完成后保留72小时，到期自动清理本地缓存；笔记不删除。\n默认最高720p、单个视频不超过4GiB。是否开始？');
     if(!allowed)return;
     const button=$('vkn-video-cache'),hint=$('vkn-cache-hint');button.disabled=true;hint.hidden=false;hint.textContent='正在提交本地下载任务…';
-    try{const job=await call('VKN_CACHE_CREATE',{title:state.session.title,consent:true});
+    try{const job=await call('VKN_CACHE_CREATE',{title:cacheSession.title,sourceUrl:cacheUrl,consent:true});
+      if(state.session!==cacheSession||getKey()!==cacheSession.key)return;
       hint.textContent=job.state==='ready'?'该视频已有本地缓存。点击“本地缓存”播放；不会延长到期时间。':'已加入本地下载队列；在“本地缓存”中查看进度或取消。不影响听写。';
-    }catch(e){hint.textContent=e.message;}finally{button.disabled=false;}
+    }catch(e){if(state.session===cacheSession&&getKey()===cacheSession.key)hint.textContent=e.message;}finally{button.disabled=false;}
   });
   $('vkn-cache-library').addEventListener('click',async()=>{try{await call('VKN_CACHE_OPEN');}catch(e){$('vkn-cache-hint').hidden=false;$('vkn-cache-hint').textContent=e.message;}});
   $('vkn-load-more').addEventListener('click',()=>{state.liveLimit+=50;renderLive();});
-  $('vkn-document-picker').addEventListener('change',()=>{if(state.session){C.activateDocument(state.session,$('vkn-document-picker').value);scheduleSave();render();}});
+  $('vkn-document-picker').addEventListener('change',()=>{if(currentSession()){C.activateDocument(state.session,$('vkn-document-picker').value);scheduleSave();render();}});
   $('vkn-txt').addEventListener('click',()=>exportDoc('txt'));
-  $('vkn-export-audit').addEventListener('click',()=>{if(state.session)downloadFile(JSON.stringify(C.auditExport(state.session),null,2),'application/json;charset=utf-8',C.makeFilename(state.session.title+'_核查','json'));});
+  $('vkn-export-audit').addEventListener('click',()=>{if(currentSession())downloadFile(JSON.stringify(C.auditExport(state.session),null,2),'application/json;charset=utf-8',C.makeFilename(state.session.title+'_核查','json'));});
   $('vkn-export-notebook').addEventListener('click',()=>{
-    if(!state.session)return;
+    if(!currentSession())return;
     let data=C.buildDocumentMarkdown(state.session);
     const docs=C.documentHistory(state.session);if(docs.length>1){data+='\n\n---\n\n## 已保存的全部整理版本\n\n'+docs.map(d=>C.resultMarkdown(state.session,d)).join('\n\n---\n\n');}
     downloadFile(data,'text/markdown;charset=utf-8',C.makeFilename(state.session.title+'_全部笔记','md'));
@@ -724,8 +748,8 @@
   $('vkn-md').addEventListener('click',()=>exportDoc('md'));
   $('vkn-html').addEventListener('click',()=>exportDoc('html'));
   $('vkn-copy').addEventListener('click',async()=>{
-    if(!state.session)return;
-    const str=C.resultText(state.session);
+    const ss=currentSession();if(!ss)return;
+    const str=C.resultText(ss);
     try {await navigator.clipboard.writeText(str);showStatus('文档已复制到剪贴板','ok');}
     catch {showStatus('复制失败。可使用Markdown下载按钮保存。','error');}
   });
@@ -762,7 +786,7 @@
       render();reply({ok:true});
     }
     if(msg?.type==='VKN_ASR_EVENT'){
-      if(msg.sessionKey!==state.key){reply({ok:false,ignored:true});return;}
+      if(!currentSession()||msg.sessionKey!==state.session.key){reply({ok:false,ignored:true});return;}
       const data=msg.data||{};
       if(!state.stopRequested&&['caption_clock','started','asr_pause_state'].includes(msg.kind))captionClock(data);
       if(msg.tabId)state.asrTabId=msg.tabId;
@@ -831,13 +855,14 @@
   function renderCaptionStatus(){
     const ss=state.session;if(!ss)return;
     const reviews=Object.values(ss.captionReviews||{}),n=reviews.filter(x=>x.status==='applied').length;
-    $('vkn-caption-count').textContent=n?'已辅助修订 '+n+' 条':'';
+    const evidence=(ss.captionObservations||[]).length,candidates=reviews.filter(x=>x.status==='candidate').length;
+    $('vkn-caption-count').textContent='已读 '+evidence+' 条 · 修订 '+n+' 条'+(candidates?' · 候选 '+candidates+' 条':'');
     $('vkn-caption-status').textContent=ss.captionOptions?.enabled===false?'字幕辅助校对已关闭，继续保留听写。':caption.message;
   }
   function rememberCaptionOptions(){
     if(!state.session)return;
     state.session.captionOptions={enabled:$('vkn-caption-enabled').checked,frames:$('vkn-caption-frames').checked};
-    pauseCaptionWork();caption.nextFrame=0;caption.message='设置已保存；只核对本轮录制中采到的字幕。';scheduleSave();renderCaptionStatus();
+    pauseCaptionWork();caption.nextFrame=0;call('VKN_CAPTION_CLOCK',{key:state.key,sampleFrames:state.session.captionOptions.enabled&&state.session.captionOptions.frames}).catch(()=>{});caption.message='设置已保存；只核对本轮录制中采到的字幕。';scheduleSave();renderCaptionStatus();
   }
   function storeCaptionEvidence(rows){
     const ss=state.session;if(!ss||!CP||!rows.length)return;
@@ -870,7 +895,7 @@
         const cleaned=C.cleanCaptionReview({...r,checkedAt:new Date().toISOString()});if(cleaned)ss.captionReviews[r.id]=cleaned;
       }
       ready.forEach(x=>caption.checks.set(x.cue.id,x.fingerprint));
-      caption.message=data.phonetic_available?'已对照同时间字幕；仅采用通过同音/保护检查的局部修订，原文保留。':'字幕已取得；拼音组件未就绪，保留候选。可运行 INSTALL_ALL.bat 补齐。';
+      caption.message=data.phonetic_available?'已对齐同时间字幕；中文同音与英文拼写分别校验，原文保留。':'字幕已取得，英文拼写可独立核对；中文拼音组件未就绪，中文候选未自动采用。';
       scheduleSave();render();
     }catch(e){if(generation===caption.generation){caption.message='字幕核对暂缓：'+e.message+'。听写不受影响。';caption.nextFrame=Date.now()+30000;caption.nextCheck=Date.now()+30000;}}
     finally{caption.busy=false;renderCaptionStatus();}
@@ -879,7 +904,7 @@
     const ss=state.session,v=getVideo();
     if(!ss||!CP||ss.captionOptions?.enabled===false||!state.asrRunning||state.asrPaused||state.stopRequested||!v||v.paused||v.seeking)return;
     if(Date.now()-caption.lastClock>2500){caption.lastClock=Date.now();const gen=caption.generation;
-      call('VKN_CAPTION_CLOCK',{key:state.key}).then(r=>{if(gen===caption.generation&&state.session===ss&&state.asrRunning&&!state.stopRequested&&!v.seeking)captionClock(r);}).catch(()=>{});
+      call('VKN_CAPTION_CLOCK',{key:state.key,sampleFrames:ss.captionOptions?.frames!==false&&Date.now()-caption.lastNative>=2500}).then(r=>{if(gen===caption.generation&&state.session===ss&&state.asrRunning&&!state.stopRequested&&!v.seeking)captionClock(r);}).catch(()=>{});
     }
     if(!caption.stream)return;
     const now=Number(v.currentTime),rows=CP.readVisible(v),keys=new Set();
@@ -902,12 +927,18 @@
       if(result.busy){caption.message='视觉模型有其他任务，暂用语音听写。';caption.nextFrame=Date.now()+5000;return;}
       storeCaptionEvidence(result.observations||[]);
       caption.message=result.observations?.length?'已采样画面字幕，待对应听写对齐；图片未保存。':'本次画面未读到清晰字幕，继续语音听写。';
-      caption.nextFrame=Date.now()+(result.observations?.length?2000:8000);
+      if(result.sampling?.dropped)caption.message+=' 画面队列落后，累计跳过 '+result.sampling.dropped+' 组采样；没有字幕覆盖的内容未校正。';
+      if(result.sampling?.queued)caption.message+=' 待核对 '+result.sampling.queued+' 组。';
+      caption.nextFrame=Date.now()+(result.sampling?.queued?500:result.observations?.length?2000:4000);
     }catch(e){if(generation===caption.generation){caption.message='画面核对暂缓：'+e.message+'。听写继续。';caption.nextFrame=Date.now()+45000;}}
     finally{caption.busy=false;renderCaptionStatus();}
   }
   for(const id of ['vkn-caption-enabled','vkn-caption-frames'])$(id).addEventListener('change',rememberCaptionOptions);
 
+  // SPA navigation events supplement polling; action guards cover the interval before events.
+  function routeChanged(){if(getKey()!==state.key)void switchVideo(getKey());}
+  document.addEventListener('yt-navigate-finish',()=>{state.navigationPending=false;routeChanged();render();});
+  window.addEventListener('popstate',routeChanged);
   async function init(){
     await refreshSettings();
     host.style.display='none';

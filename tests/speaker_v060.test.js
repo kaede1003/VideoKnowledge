@@ -5,7 +5,7 @@ const sid='d'.repeat(32),a=sid+':spk1',b=sid+':spk2';
 const cues=[{id:sid+':1:0',revision:1,time:1,text:'问题是什么',speakerId:a,speakerStatus:'estimated',source:'local-asr'},
 {id:sid+':1:1',revision:1,time:3,text:'这是答案',speakerId:b,speakerStatus:'estimated',source:'local-asr'},
 {id:sid+':2:0',revision:1,time:5,text:'继续追问',speakerId:a,speakerStatus:'estimated',source:'local-asr'}];
-const session={key:'yt:sample',title:'测试对话',url:'https://www.youtube.com/watch?v=test',segments:cues,speakerNames:{[a]:'主持人',[b]:'嘉宾'},speakerOverrides:{}};
+const session={key:'yt:sample',title:'测试对话',url:'https://www.youtube.com/watch?v=sample',segments:cues,speakerNames:{[a]:'主持人',[b]:'嘉宾'},speakerOverrides:{}};
 test('speaker fields survive durable cue sanitization and later translation revisions',()=>{
  const incoming={...cues[0],revision:2,text:'中文译文',translation:'中文译文',original:'original'};
  const out=C.mergeCues(cues,[incoming]);assert.equal(out[0].speakerId,a);assert.equal(out[0].text,'中文译文');

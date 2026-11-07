@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const C=require('../extension/core'),{makeHarness}=require('./ai_harness');
 const id='a'.repeat(32)+':12:0';
 const cue={id,revision:1,source:'local-asr',time:4,end:6,text:'It is not true.',original:'It is not true.',translation:'这是事实。',translationStatus:'needs_review',needsReview:true,reviewReason:'可能漏译否定',qualityFlags:['translation_suspect'],verificationStatus:'machine_unverified',asrModel:'small'};
-const session={key:'yt:quality',title:'测试',url:'https://example.org/video',segments:[cue]};
+const session={key:'yt:quality',title:'测试',url:'https://www.youtube.com/watch?v=quality',segments:[cue]};
 test('quality fields survive persisted cue normalization',()=>{const got=C.cleanCue(cue);assert.equal(got.asrModel,'small');assert.deepEqual(got.qualityFlags,['translation_suspect']);assert.equal(got.verificationStatus,'machine_unverified');});
 test('comparison symbols are not treated as arbitrary HTML tags',()=>{const got=C.cleanCue({time:1,text:'x < 5 and y > 3; keep <b>the numbers</b>'});assert.equal(got.text,'x < 5 and y > 3; keep the numbers');});
 test('suspect translation not promoted into the model input',()=>{const line=C.transcriptLine(cue);assert.match(line,/It is not true/);assert.match(line,/待核对/);assert.doesNotMatch(line,/这是事实/);});

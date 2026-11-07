@@ -1,0 +1,172 @@
+{
+  "started_utc": "2026-11-07T08:38:35.698264+00:00",
+  "suite": "all",
+  "scope": "Code, fixture unit tests, optional DOM tests; NOT real Edge/ASR/Ollama acceptance",
+  "python": "3.13.5",
+  "platform": "linux",
+  "all_passed": true,
+  "checks": [
+    {
+      "name": "repository",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "scripts/check_repo.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.971,
+      "log": "artifacts/checks/20261107T083835698264Z/repository.log"
+    },
+    {
+      "name": "js-syntax",
+      "command": [
+        "/opt/nvm/versions/node/v22.16.0/bin/node",
+        "scripts/check_js.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.967,
+      "log": "artifacts/checks/20261107T083835698264Z/js-syntax.log"
+    },
+    {
+      "name": "javascript",
+      "command": [
+        "/opt/nvm/versions/node/v22.16.0/bin/node",
+        "scripts/run_js_tests.cjs"
+      ],
+      "exit_code": 0,
+      "seconds": 0.924,
+      "log": "artifacts/checks/20261107T083835698264Z/javascript.log"
+    },
+    {
+      "name": "python-compile",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "compileall",
+        "-q",
+        "server",
+        "scripts",
+        "tests"
+      ],
+      "exit_code": 0,
+      "seconds": 0.827,
+      "log": "artifacts/checks/20261107T083835698264Z/python-compile.log"
+    },
+    {
+      "name": "python",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "seconds": 3.377,
+      "log": "artifacts/checks/20261107T083835698264Z/python.log"
+    },
+    {
+      "name": "browser_navigation_v0102",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_navigation_v0102.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.781,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_navigation_v0102.log"
+    },
+    {
+      "name": "browser_cache_v0102",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_cache_v0102.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.791,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_cache_v0102.log"
+    },
+    {
+      "name": "browser_reader_v0101",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_reader_v0101.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.13,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_reader_v0101.log"
+    },
+    {
+      "name": "browser_caption_v0100",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_caption_v0100.py"
+      ],
+      "exit_code": 0,
+      "seconds": 7.596,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_caption_v0100.log"
+    },
+    {
+      "name": "browser_quality_v071",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_quality_v071.py"
+      ],
+      "exit_code": 0,
+      "seconds": 6.349,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_quality_v071.log"
+    },
+    {
+      "name": "browser_writing_v070",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_writing_v070.py"
+      ],
+      "exit_code": 0,
+      "seconds": 11.468,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_writing_v070.log"
+    },
+    {
+      "name": "browser_ai_v052",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_ai_v052.py"
+      ],
+      "exit_code": 0,
+      "seconds": 4.164,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_ai_v052.log"
+    },
+    {
+      "name": "browser_content_v052",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_content_v052.py"
+      ],
+      "exit_code": 0,
+      "seconds": 10.72,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_content_v052.log"
+    },
+    {
+      "name": "browser_v080",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_v080.py"
+      ],
+      "exit_code": 0,
+      "seconds": 4.506,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_v080.log"
+    },
+    {
+      "name": "browser_presentation_v090",
+      "command": [
+        "/opt/pyvenv/bin/python",
+        "tests/browser_presentation_v090.py"
+      ],
+      "exit_code": 0,
+      "seconds": 5.49,
+      "log": "artifacts/checks/20261107T083835698264Z/browser_presentation_v090.log"
+    }
+  ]
+}
