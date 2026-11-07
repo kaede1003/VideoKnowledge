@@ -18,10 +18,23 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-INSTALLER_VERSION = '0.8.2'
+INSTALLER_VERSION = '0.8.4'
 BLOB_HOST = 'dd20bb891979d25aebc8bec07b2b3bbc.r2.cloudflarestorage.com'
 PROBE_HOSTS = ('registry.ollama.ai', 'ollama.com', BLOB_HOST)
-MODEL_NAMES = {'text': 'qwen2.5:3b', 'vision': 'qwen2.5vl:3b'}
+MODEL_NAMES = {'text': 'qwen2.5:3b', 'vision': 'qwen2.5vl:3b',
+               'asr': 'frozenlab/qwen3-asr:1.7b'}
+# Auto-download only these reviewed ASR tags. Other explicitly configured tags
+# can still be used when already installed; the installer won't pull unknown publishers.
+OLLAMA_ASR_DOWNLOADABLE = frozenset({MODEL_NAMES['asr'], 'frozenlab/qwen3-asr:0.6b'})
+_MODEL_TAG = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$')
+
+
+def validate_asr_tag(tag: str) -> str:
+    """Validate a local model name without importing ASR runtime dependencies."""
+    if not isinstance(tag, str) or not _MODEL_TAG.fullmatch(tag) or '://' in tag or '..' in tag:
+        raise InstallFailure('Invalid Ollama ASR model tag', code='MODEL_NAME', retryable=False)
+    return tag
+
 
 
 def redact(value: object) -> str:
@@ -202,7 +215,7 @@ class OllamaClient:
 
     def pull_once(self, model: str, *, idle_timeout: float = 180, stall_timeout: float = 600,
                   total_timeout: float = 14400, progress=lambda data: None):
-        if model not in MODEL_NAMES.values():
+        if model not in MODEL_NAMES.values() and model not in OLLAMA_ASR_DOWNLOADABLE:
             raise InstallFailure('Only this project\'s named local models are accepted', code='MODEL_SCOPE', retryable=False)
         if min(idle_timeout, stall_timeout, total_timeout) <= 0:
             raise ValueError('Timeouts must be positive')

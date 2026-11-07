@@ -103,13 +103,34 @@ class StreamManager:
                 except Exception as exc:
                     code = getattr(exc, 'code', type(exc).__name__)
                     self.mark('asr', 'job_failed', error=code)
-                    LOG.exception('ASR job retained for retry')
+                    # One warning per failure, not repeated full tracebacks
+                    # for known upstream Ollama errors. The local error code and
+                    # server.log carry the diagnosis; do not log raw audio.
+                    if code in ('ASR_OLLAMA_SERVER_ERROR','ASR_OLLAMA_HTTP'):
+                        LOG.warning('Ollama ASR job failed; audio retained: %s', str(exc)[:240])
+                    else:
+                        LOG.exception('ASR job retained for retry')
                     # No failed call advances the audio cursor or changes engine.
-                    hints = {'ASR_RUNTIME_MISSING':'Qwen环境未安装；运行 INSTALL_ALL.bat -Profile asr -AsrProfile qwen17',
+                    hints = {'ASR_OLLAMA_UNAVAILABLE':'本地Ollama不可连接，原音仍在缓存中，检查11434端口',
+                             'ASR_OLLAMA_SERVER_ERROR':'Ollama模型推理HTTP 5xx；检查Ollama server.log中的真实原因',
+                             'ASR_OLLAMA_MODEL_MISSING':'未找到已安装的Ollama语音模型，请检查ollama list',
+                             'ASR_OLLAMA_TIMEOUT':'本地Ollama识别超时，缓存未删除，检查GPU资源',
+                             'ASR_OLLAMA_UNSUPPORTED':'Ollama版本不支持此模型的音频接口',
+                             'ASR_OLLAMA_BAD_RESPONSE':'语音模型返回格式异常，原音保留',
+                             'ASR_RUNTIME_MISSING':'Qwen环境未安装；运行 INSTALL_ALL.bat -Profile asr -AsrProfile qwen17',
                              'ASR_CUDA_UNAVAILABLE':'Qwen CUDA不可用；原音保留，不自动回退CPU或旧模型',
                              'ASR_OUTPUT_TRUNCATED':'模型输出到达上限，原音保留；请尝试较短识别窗口',
                              'ASR_WORKER_TIMEOUT':'Qwen识别等待超时，原音保留；检查本机资源负载'}
-                    self.store.fail(sid, code + ': ' + hints.get(code,'local recognition failed; see service log'))
+                    # After two consecutive 5xx errors on the same durable
+                    # session, back off for 15 minutes; the existing “retry”
+                    # control explicitly clears retry_at after Ollama is fixed.
+                    prior=self.store.session(sid) or {}
+                    cool_down=(code in ('ASR_OLLAMA_SERVER_ERROR','ASR_OLLAMA_HTTP')
+                               and prior.get('attempts',0)>=1)
+                    detail=str(exc)[:190] if code=='ASR_OLLAMA_SERVER_ERROR' else ''
+                    message=code + ': ' + hints.get(code,'local recognition failed; see service log')
+                    if detail: message += ' (' + detail + ')'
+                    self.store.fail(sid, message, cool_down=cool_down)
                 progressed = True
             if not progressed:
                 self.wake.clear()

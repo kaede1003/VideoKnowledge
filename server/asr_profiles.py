@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_FILE = 'asr_profile.local.json'
 PROFILES = {
+    'ollama17': {'backend': 'ollama-qwen3-asr', 'model': 'frozenlab/qwen3-asr:1.7b',
+                 'device': 'ollama-managed', 'compute': 'ollama'},
     'qwen17': {'backend': 'qwen3-native', 'model': 'Qwen/Qwen3-ASR-1.7B-hf',
                'model_dir': 'models/qwen3-asr-1.7b-hf', 'device': 'cuda:0', 'compute': 'bfloat16'},
     'qwen06': {'backend': 'qwen3-native', 'model': 'Qwen/Qwen3-ASR-0.6B-hf',
@@ -35,11 +37,18 @@ def resolve_profile(root=ROOT, environ=None):
                 'compute': env.get('VKN_ASR_COMPUTE', 'int8').strip() or 'int8'}
     if name not in PROFILES:
         raise ValueError('ASR_PROFILE_UNKNOWN: no automatic engine fallback')
-    return {'profile': name, **PROFILES[name]}
+    cfg = {'profile': name, **PROFILES[name]}
+    if name == 'ollama17' and isinstance(value.get('model'), str):
+        from .ollama_asr import validate_model
+        cfg['model'] = validate_model(value['model'])
+    return cfg
 
 
 def create_engine(root=ROOT):
     cfg = resolve_profile(root)
+    if cfg['backend'] == 'ollama-qwen3-asr':
+        from .ollama_asr import OllamaASREngine
+        return OllamaASREngine(cfg)
     if cfg['backend'] == 'qwen3-native':
         from .qwen_engine import QwenEngine
         return QwenEngine(cfg, root=Path(root))

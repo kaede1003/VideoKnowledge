@@ -18,7 +18,7 @@ sys.path.insert(0,str(ROOT))
 from server.asr_profiles import PROFILE_FILE, PROFILES, ALIGNER_DIR, resolve_profile
 
 
-def activate(root, name, report=None):
+def activate(root, name, report=None, model=None):
     if name not in {*PROFILES,'legacy'}:raise ValueError('Unknown ASR profile')
     target=Path(root)/PROFILE_FILE
     stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
@@ -28,6 +28,10 @@ def activate(root, name, report=None):
         shutil.copy2(target,backups/(stamp+'.json'))
     value={'version':1,'profile':name,'selected_at':stamp,
            'verification':report or {'accuracy_tested':False}}
+    if model is not None:
+        if name != 'ollama17': raise ValueError('Model override only available for Ollama')
+        from server.ollama_asr import validate_model
+        value['model'] = validate_model(model)
     tmp=target.with_name(target.name+'.tmp')
     try:
         tmp.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -55,12 +59,20 @@ def ensure_qwen_env(root, runner=run):
     return python
 
 
-def install(name, *, root=ROOT, runner=run):
+def install(name, *, root=ROOT, runner=run, model=None, client=None):
     root=Path(root)
     if name=='legacy':
         activate(root,'legacy')
         return {'profile':'legacy','action':'selected_existing_environment','accuracy_tested':False}
     cfg=PROFILES[name]
+    if cfg['backend']=='ollama-qwen3-asr':
+        from server.ollama_asr import OllamaASRClient, validate_model
+        resolved = validate_model(model or cfg['model'])
+        api = client or OllamaASRClient(resolved)
+        report = api.smoke_test()
+        report.update(profile=name, backend=cfg['backend'], verified_model=resolved)
+        activate(root,name,report,model=resolved)
+        return report
     if cfg['backend']=='qwen3-native':
         python=ensure_qwen_env(root,runner)
         runner([python,'scripts/qwen_model_setup.py','--profile',name],root=root)
@@ -82,12 +94,13 @@ def install(name, *, root=ROOT, runner=run):
 def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--profile',choices=[*PROFILES,'legacy'],required=True)
+    p.add_argument('--model',default=None,help='Exact locally installed model tag, only for ollama17')
     p.add_argument('--status',action='store_true')
     args=p.parse_args(argv)
     if args.status:
         print(json.dumps(resolve_profile(ROOT),ensure_ascii=False));return 0
     try:
-        report=install(args.profile)
+        report=install(args.profile,model=args.model)
         print('[OK] ASR profile selected: '+json.dumps(report,ensure_ascii=False),flush=True)
         print('[NOTE] This does not verify real speech accuracy, translation or Edge capture.',flush=True)
         return 0

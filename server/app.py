@@ -8,8 +8,10 @@ import uuid
 from pathlib import Path
 import re
 from fastapi import FastAPI, WebSocket, Request
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from .asr_profiles import create_engine
+from .asr_settings import attach_asr_settings
 from .stream_store import StreamStore
 from .stream_service import StreamManager
 from .lora_service import attach_lora_routes
@@ -53,10 +55,17 @@ async def lifespan(app):
         MANAGER=None
 
 app=FastAPI(title='Video Knowledge Local ASR',docs_url=None,redoc_url=None,openapi_url=None,lifespan=lifespan)
+# Accept only extension origins on the HTTP config CORS handshake. No wildcard
+# and no credentials; other websites cannot gain cross-origin API access.
+app.add_middleware(CORSMiddleware,
+    allow_origin_regex=r'chrome-extension://[a-p]{32}',
+    allow_methods=['GET','POST'],
+    allow_headers=['Content-Type','X-VKN-Extension-ID'],
+    allow_credentials=False)
 
 @app.get('/health')
 async def health():
-    return {'ok':True,'service':'vkn-asr','version':'0.11.0','protocol':5,
+    return {'ok':True,'service':'vkn-asr','version':'0.11.3','protocol':5,
             'process_id':os.getpid(),'boot_id':BOOT_ID,'uptime_seconds':round(time.monotonic()-STARTED_AT,1),
             'runtime':MANAGER.snapshot() if MANAGER else {'stopping':True},
             'asr_backend':ENGINE.snapshot() if hasattr(ENGINE,'snapshot') else {'backend':'faster-whisper','profile':getattr(ENGINE,'profile_name','legacy')},
@@ -73,6 +82,7 @@ async def asr_websocket(ws:WebSocket):
     await ws.accept()
     await MANAGER.serve(ws)
 
+attach_asr_settings(app,engine=ENGINE)
 attach_lora_routes(app)
 attach_video_cache_routes(app)
 attach_context_review_routes(app)

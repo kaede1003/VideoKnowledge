@@ -1,0 +1,11 @@
+VideoKnowledge v0.11.1 Ollama ASR UPGRADE
+
+1. Export important notebooks; stop capture and local server. Do not remove .venv,
+   models, ASR_SETTINGS.bat, browser notebooks or caches.
+2. Merge these source files into the EXISTING project root (e.g. D:\VideoKnowledge_Git_Project).
+3. From that root, run: INSTALL_ALL.bat -Profile asr -AsrProfile ollama17
+4. Start service START_LOCAL_ASR.bat; reload existing Edge extension.
+5. Check /health: asr_backend.backend = ollama-qwen3-asr.
+6. To revert: stop service; INSTALL_ALL.bat -Profile asr -AsrProfile legacy; restart.
+
+See docs/UPGRADE_V0111_OLLAMA_ASR.md. No model weights / private notebooks in this package.

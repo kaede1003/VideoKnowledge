@@ -1,3 +1,33 @@
+# Installer 0.8.4 · Ollama Qwen3-ASR 自动下载（业务组件仍0.11.3）
+
+- `INSTALL_ALL.bat` 默认全量安装及 `-Profile models/core` 增加本地 Qwen3-ASR 模型检查与缺失自动拉取。
+- `-Profile asr -AsrProfile ollama17` 不再只验证已安装模型：缺少时使用本地 Ollama `/api/pull` 流式下载，完成校验后才执行原有合成音频自检与选择切换。
+- 复用现有断点缓存、有限重试、进度报告、Fake-IP/证书/磁盘错误分类；已装模型跳过。自动拉取仅支持 `frozenlab/qwen3-asr:1.7b` 和 `:0.6b`，其他自定义标签需先手动安装。
+- 不修改 Edge/Server 音频协议、听写、缓存、已存偏好或模型文件；没有执行真实 Windows Ollama 模型下载/推理。
+
+---
+
+# V0.11.3 · git-r11 · Ollama HTTP 500 backoff and diagnostics
+
+- Preserve durably cached audio when the Ollama `/api/chat` backend returns HTTP 5xx. After two consecutive 5xx failures in one session, cool down for 15 minutes instead of flooding the server. Existing explicit retry can resume after fixing Ollama.
+- Categorize Ollama runner exit, audio projector incompatibility, memory failure, or generic server error from sanitized HTTP 5xx body; do not store raw error paths or transcripts in the telemetry.
+- Add a local-only diagnostic launcher (`CHECK_OLLAMA_ASR.bat`) that checks Ollama version/model status without audio by default, and optionally sends a short user-provided WAV. Never includes raw audio or generated transcript in its output report.
+- This is a failure-handling and diagnosis fix, NOT proof that the frozenlab Qwen3-ASR model can run on the user's Windows GPU. No PyTorch download, model reinstallation or notebook migration.
+
+# V0.11.2 · git-r10 · STOP_LOCAL_ASR 与 ASR配置403修复
+
+- 修改STOP_LOCAL_ASR.bat的PowerShell项目根路径传递，避免末尾反斜杠/引号造成GetFullPath参数非法。
+- `/asr/config`接受没有Origin但携带合法扩展身份头的本机配置请求；同时校验Origin与ID一致，拒绝网站来源或伪造不匹配来源。新增仅限扩展来源的CORS预检支持；不向所有网站开放API。
+- 设置页GET/POST都携带`X-VKN-Extension-ID`，403显示服务端错误原因，避免误认成Ollama API Key问题。
+- 原Whisper、Ollama、Transformers Qwen、VKN5缓存/笔记/翻译路径不变；未实测用户Windows Edge。
+
+# V0.11.1 · git-r9 · Ollama Qwen3-ASR adapter
+
+- Reuse previously downloaded local `frozenlab/qwen3-asr:1.7b` through `127.0.0.1:11434/api/chat`, sending standard 16kHz mono PCM16 WAV as Base64 `images`. Parse `language` / `<asr_text>`; no API key or PyTorch needed for Ollama path.
+- Keep VKN5 audio buffer, durable SQLite/ack/retry and translation; use owner-window time only, no invented word timestamps or forced speaker labels. Preserve old Whisper/native Qwen options and rollback.
+- `INSTALL_ALL` opt-in `-AsrProfile ollama17` validates local tag + synthetic audio before changing profile; browser options allow saving next-start selection. No model download, no notebook deletion, no silent runtime switch.
+- Added contracts and fallback tests; real Windows/Edge/Ollama inference and measured accuracy remain target-pending. Summary100s timeout unchanged.
+
 # 0.11.0 · ASR adapter preview
 
 - Added opt-in native Qwen3-ASR/ForcedAligner worker, isolated runtime, engine provenance, timing validation and explicit rollback.

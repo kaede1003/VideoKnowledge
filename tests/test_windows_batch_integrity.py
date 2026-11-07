@@ -23,6 +23,11 @@ class WindowsBatchIntegrityTests(unittest.TestCase):
         self.assertIn('scripts\\install_all.ps1', entry)
         self.assertIn('INSTALL_EXIT=%errorlevel%', entry)
 
+    def test_stop_script_root_argument_has_no_trailing_backslash_quoted(self):
+        stop=(ROOT/'STOP_LOCAL_ASR.bat').read_text(encoding='ascii')
+        self.assertIn('-ProjectRoot "%~dp0."',stop)
+        self.assertNotIn('-ProjectRoot "%~dp0"',stop)
+
     def test_websocket_transport_required(self):
         req = (ROOT / 'server/requirements.txt').read_text(encoding='utf-8')
         self.assertIn('websockets>=13,<17', req)

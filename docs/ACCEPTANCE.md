@@ -57,6 +57,7 @@
 | AC-049 | 单视频下载完成信号与错误分类 | automated_and_manual | target_pending |
 | AC-050 | YouTube单次会话授权重试 | automated_and_manual | target_pending |
 | AC-051 | Qwen3-ASR原音处理与不破坏旧环境 | automated_and_manual | target_pending |
+| AC-052 | Ollama ASR安装与真实声音验收 | automated_and_manual | target_pending |
 
 ## 具体步骤
 
@@ -567,5 +568,15 @@
 操作：同一INSTALL_ALL选择qwen17；失败不切换；成功后核对health和每条引擎字段；同音频对比；测试退出/超时/词时间戳缺失；回退legacy。
 
 预期：无虚构置信度、无静默回退、无失败游标推进；原语言与译文分开；报告真实CER/RTF而非模拟精度；旧笔记保留。
+
+当前状态：`target_pending`。
+
+### AC-052 · Ollama ASR安装与真实声音验收
+
+前置：0.11.1源码、目标Windows Ollama与frozenlab/qwen3-asr:1.7b已安装，提供有授权的参考音频。
+
+操作：停止服务→用INSTALL_ALL选择ollama17→检查无PyTorch安装、精确模型名、静音推理和配置→启动→记录真实音频→中途断网/模型不可用→核对原音、时间、语种、翻译状态、未处理缓存与进度→恢复Whisper。
+
+预期：真实模型可转写，窗口时间不伪造词时间戳，翻译与原文分离，失败不删音频/不推进游标；准确率和RTF需实测，原有数据无变化。
 
 当前状态：`target_pending`。

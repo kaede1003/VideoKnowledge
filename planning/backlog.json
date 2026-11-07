@@ -670,6 +670,20 @@
       ],
       "deliverable": "原生Qwen适配、同一安装入口、词级对齐、引擎诊断、评测脚本与安全回退",
       "notes": "代码及模拟/真实stdio测试完成；未下载或运行真实Qwen权重，Windows RTX5080性能/准确率待验收；不得假称已提升准确率"
+    },
+    {
+      "id": "VK-045",
+      "priority": "P0",
+      "title": "Ollama Qwen3-ASR 复用已安装模型并保留回退",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-044"
+      ],
+      "acceptance": [
+        "AC-052"
+      ],
+      "deliverable": "Ollama ASR适配器、真实WAV发送、无词对齐保护、配置与安装器、测试和交付文档",
+      "notes": "代码与构造测试完成；目标Windows真实音频/模型、显存及准确率待验收，不关闭此任务"
     }
   ]
 }

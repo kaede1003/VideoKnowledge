@@ -50,6 +50,7 @@
 | VK-042 | P1 | in_progress | 单视频下载完成信号与错误分类 | VK-001 |
 | VK-043 | P1 | in_progress | YouTube单次会话授权重试 | VK-001 |
 | VK-044 | P0 | in_progress | Qwen3-ASR可选接入、隔离安装与真实音频验收 | VK-001 |
+| VK-045 | P0 | in_progress | Ollama Qwen3-ASR 复用已安装模型并保留回退 | VK-044 |
 
 ## 逐项交付与验收
 
@@ -492,3 +493,13 @@
 验收：AC-051。
 
 约束：代码及模拟/真实stdio测试完成；未下载或运行真实Qwen权重，Windows RTX5080性能/准确率待验收；不得假称已提升准确率。
+
+### VK-045 · Ollama Qwen3-ASR 复用已安装模型并保留回退
+
+优先级：P0；状态：in_progress；依赖：VK-044。
+
+交付物：Ollama ASR适配器、真实WAV发送、无词对齐保护、配置与安装器、测试和交付文档。
+
+验收：AC-052。
+
+约束：代码与构造测试完成；目标Windows真实音频/模型、显存及准确率待验收，不关闭此任务。

@@ -17,7 +17,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 BROWSER_TESTS = ['browser_navigation_v0102.py', 'browser_cache_v0102.py', 'browser_reader_v0101.py', 'browser_caption_v0100.py', 'browser_quality_v071.py',
-                 'browser_writing_v070.py', 'browser_ai_v052.py', 'browser_content_v052.py', 'browser_v080.py', 'browser_presentation_v090.py']
+                 'browser_writing_v070.py', 'browser_ai_v052.py', 'browser_content_v052.py', 'browser_v080.py', 'browser_presentation_v090.py', 'browser_asr_settings_v0112.py']
 
 def plan(suite: str) -> list[tuple[str, list[str]]]:
     node = shutil.which('node') or 'node'

@@ -1,5 +1,6 @@
 # Local runtimes and build output
 .venv/
+.venv-qwen/
 venv/
 node_modules/
 __pycache__/

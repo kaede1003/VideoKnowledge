@@ -1,3 +1,50 @@
+# 安装器 0.8.4 · Ollama Qwen3-ASR 自动补装（业务版本仍 0.11.3）
+
+`INSTALL_ALL.bat` 的默认全量安装现会检查 `frozenlab/qwen3-asr:1.7b`（或已保存的 `ollama17` 模型标签），存在则跳过，缺少时用本地 Ollama `/api/pull` 下载，并验证 `/api/tags` 与 `/api/show`；不会因此擅自切换用户已有的识别引擎。
+
+```powershell
+.\INSTALL_ALL.bat                                      # 全量组件，含 Qwen3-ASR
+.\INSTALL_ALL.bat -Profile models                       # 本地文字 / 视觉 / Qwen3-ASR 三模型
+.\INSTALL_ALL.bat -Profile asr -AsrProfile ollama17     # 补装 Qwen3-ASR、音频自检成功后才切换
+.\INSTALL_ALL.bat -Profile asr -AsrProfile ollama17 -OllamaAsrModel frozenlab/qwen3-asr:0.6b
+```
+
+下载只走现有回环 Ollama 服务，沿用有界重试/流式进度/校验，不安装 PyTorch；不删除缓存、笔记、私有配置。完整操作与边界见 [安装器升级说明](docs/UPGRADE_INSTALLER_084.md)。上一版 ASR 业务代码与 Ollama HTTP 500 问题处理不变。
+
+---
+
+# V0.11.3 · Ollama ASR HTTP 500 diagnosis and retry protection (git-r11)
+
+The service can accept Edge audio but Ollama can return HTTP 500 when its model runner fails. This update preserves the VKN5 audio cursor and retries with a 15-minute cooldown after two consecutive 5xx errors; the explicit in-page retry resets the delay after the underlying Ollama problem is fixed. It categorizes a safe subset of Ollama errors and adds `CHECK_OLLAMA_ASR.bat` (optional 16-kHz WAV argument). **It does not repair an upstream Ollama runner crash or automatically switch engines.**
+
+See [step-by-step diagnosis](docs/UPGRADE_V0113_OLLAMA_500.md). Existing `.venv`, local notes, cached audio, model files and private settings are not deleted. Both extension and local server use version **0.11.3**; the installer remains 0.8.3.
+
+---
+
+# V0.11.2 · Windows停止脚本与本地ASR设置修复（git-r10）
+
+修复STOP_LOCAL_ASR.bat因Windows路径引号解析报“GetFullPath非法字符”，及Edge设置“检查识别引擎”收到HTTP 403。只需合并覆盖升级包的代码，不删除模型/笔记/SQLite/.venv/私有配置；扩展和服务均升级至0.11.2。安装器仍是0.8.3、协议5。
+
+先停止旧服务，再合并覆盖补丁；运行`START_LOCAL_ASR.bat`后在`edge://extensions/`重新加载原扩展。设置页“检查识别引擎”应该显示当前与下次启动引擎状态；此检查不加载或下载模型。真实Windows端尚待用户复核。详情见[本版升级说明](docs/UPGRADE_V0112_CONFIG_STOP.md)。
+
+---
+
+# V0.11.1 · Ollama ASR 适配（git-r9）
+
+**新增可选的本机 Ollama Qwen3-ASR-1.7B 语音识别。** 已经通过 `ollama pull frozenlab/qwen3-asr:1.7b` 安装模型时，不必下载 PyTorch CUDA 或独立 `.venv-qwen`。原 Whisper 与原生 Transformers Qwen 回退保留。**真实 Windows Edge/Ollama 模型准确率未在当前环境实测。**
+
+```powershell
+.\STOP_LOCAL_ASR.bat
+.\INSTALL_ALL.bat -Profile asr -AsrProfile ollama17
+.\START_LOCAL_ASR.bat
+```
+
+打开 `http://127.0.0.1:8765/health`，检查 `asr_backend.backend` 是否为 `ollama-qwen3-asr`。在扩展设置“本地听写 → 识别引擎”也可以选择本机已安装的模型并保存为下次启动；不会中断当前录音。回退：`INSTALL_ALL.bat -Profile asr -AsrProfile legacy`。完整说明见 [Ollama ASR升级/回退说明](docs/UPGRADE_V0111_OLLAMA_ASR.md)。
+
+**本方案没有逐词时间戳，因此不会虚构说话人归属或置信度；外语原文进入既有翻译队列，音频失败不会推进持久游标。** 长文整理100秒超时仍是独立待办。下面内容包含历史版本说明，具体版本以 `VERSION.json` 为准。
+
+---
+
 # V0.11.0 · ASR引擎接入预览
 
 **本轮已接入代码，真实模型质量待验收；不会自动替换已有设置。** 选择新模型只用一个安装入口：

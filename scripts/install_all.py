@@ -19,15 +19,15 @@ import sys
 import threading
 import time
 
-from install_support import (BLOB_HOST, INSTALLER_VERSION, MODEL_NAMES, PROBE_HOSTS,
+from install_support import (BLOB_HOST, INSTALLER_VERSION, MODEL_NAMES, OLLAMA_ASR_DOWNLOADABLE, PROBE_HOSTS,
                              InstallFailure, InstallerLock, OllamaClient, dns_probe,
-                             ensure_model, redact, write_json_atomic)
+                             ensure_model, redact, validate_asr_tag, write_json_atomic)
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = {
-    'all': ['runtime', 'review', 'video', 'text', 'vision', 'asr', 'speaker'],
-    'core': ['runtime', 'review', 'asr', 'text'],
-    'models': ['text', 'vision'],
+    'all': ['runtime', 'review', 'video', 'text', 'vision', 'ollama_asr', 'asr', 'speaker'],
+    'core': ['runtime', 'review', 'asr', 'text', 'ollama_asr'],
+    'models': ['text', 'vision', 'ollama_asr'],
     'text': ['text'], 'vision': ['vision'], 'asr': ['runtime', 'asr'],
     'speaker': ['runtime', 'speaker'], 'review': ['runtime', 'review'],
     'video': ['runtime', 'video'], 'diagnose': [],
@@ -40,7 +40,8 @@ def plan(profile: str, asr_model: str, asr_profile: str = 'keep') -> list[dict]:
         'review': '上下文同音词校验组件',
         'video': '视频下载组件及 FFmpeg / Deno 检查',
         'speaker': '说话人分组组件、模型与静音加载检查',
-        'asr': (f'ASR 引擎安装与加载检查：{asr_profile}（Qwen独立环境；通过后切换）' if asr_profile != 'keep' else f'检查当前ASR配置；旧配置预下载 Whisper {asr_model}'),
+        'asr': (f'ASR 引擎安装与加载检查：{asr_profile}（Ollama模型缺失则自动下载、不安装PyTorch；原生Qwen仍需独立环境）' if asr_profile != 'keep' else f'检查当前ASR配置；旧配置预下载 Whisper {asr_model}'),
+        'ollama_asr': 'Ollama 语音模型 Qwen3-ASR（已安装则跳过，缺少才拉取；不切换现有引擎）',
         'text': f'本地文字模型 {MODEL_NAMES["text"]}',
         'vision': f'本地视觉模型 {MODEL_NAMES["vision"]}',
     }
@@ -98,7 +99,7 @@ def supported_deno() -> bool:
 
 def missing_system_tools(parts: list[str], client: OllamaClient) -> list[tuple[str, str]]:
     missing = []
-    if any(x in parts for x in ('text', 'vision')):
+    if any(x in parts for x in ('text', 'vision', 'ollama_asr')):
         try:
             client.request_json('GET', '/api/version', timeout=3)
         except InstallFailure:
@@ -122,7 +123,7 @@ class Installer:
         self.json_path = self.out / ('install-' + stamp + '.json')
         self.log_path = self.out / ('install-' + stamp + '.log')
         self.log = self.log_path.open('w', encoding='utf-8', buffering=1)
-        self.report = {'installer_version': INSTALLER_VERSION, 'app_version': '0.11.0',
+        self.report = {'installer_version': INSTALLER_VERSION, 'app_version': '0.11.3',
                        'started_utc': stamp, 'profile': args.profile, 'steps': [],
                        'models': {}, 'all_selected_ready': False,
                        'scope': 'Installation checks; not real Edge/ASR/Ollama quality acceptance'}
@@ -268,7 +269,10 @@ class Installer:
 
     def install_system_tools(self):
         refresh_path()
-        missing = missing_system_tools(self.parts, self.client)
+        parts = list(self.parts)
+        if 'asr' in parts and self.effective_asr_selection()[0] == 'ollama17':
+            parts.append('ollama_asr')
+        missing = missing_system_tools(parts, self.client)
         if not missing:
             return {'missing': []}
         packages = [p for _, p in missing]
@@ -337,15 +341,42 @@ class Installer:
         self.command([sys.executable, 'scripts/install_speaker_models.py'], timeout=3600, attempts=3)
         return {'model_load_and_silence_check': True, 'speaker_accuracy_tested': False}
 
-    def asr(self):
-        if not self.runtime_ok:
-            raise InstallFailure('本地运行依赖未完成，Whisper 预下载暂缓。', code='DEPENDENCY', retryable=False)
-        selected = getattr(self.args, 'asr_profile', 'keep')
-        if selected == 'keep' and (self.root / 'asr_profile.local.json').exists():
+    def effective_asr_selection(self) -> tuple[str, str | None]:
+        selected = self.args.asr_profile
+        saved_model = None
+        if selected == 'keep' and (self.root / 'asr_profile.local.json').is_file():
             saved = json.loads((self.root / 'asr_profile.local.json').read_text(encoding='utf-8'))
             selected = saved.get('profile', 'legacy')
-        if selected not in ('keep', 'legacy') or getattr(self.args, 'asr_profile', 'keep') == 'legacy':
-            self.command([sys.executable, 'scripts/setup_asr_profile.py', '--profile', selected], timeout=10800)
+            if selected == 'ollama17':
+                saved_model = saved.get('model')
+        return selected, saved_model
+
+    def ollama_asr_tag(self) -> str:
+        # CLI wins; otherwise preserve a configured Ollama tag, then use the
+        # documented default. Never rewrite the user's preferences here.
+        selected, saved_model = self.effective_asr_selection()
+        name = self.args.ollama_asr_model or (saved_model if selected == 'ollama17' else None) or MODEL_NAMES['asr']
+        return validate_asr_tag(name)
+
+    def ollama_asr(self):
+        return self.model('asr')
+
+    def asr(self):
+        if not self.runtime_ok:
+            raise InstallFailure('本地运行依赖未完成，ASR 安装暂缓。', code='DEPENDENCY', retryable=False)
+        selected, _ = self.effective_asr_selection()
+        if selected == 'ollama17':
+            # An explicit ASR selection is only activated after both a real
+            # model download/metadata check and the existing audio smoke test.
+            tag = self.ollama_asr_tag()
+            result = self.report['models'].get('asr', {})
+            if result.get('model') != tag:
+                self.ollama_asr()
+        if selected not in ('keep', 'legacy') or self.args.asr_profile == 'legacy':
+            cmd = [sys.executable, 'scripts/setup_asr_profile.py', '--profile', selected]
+            if selected == 'ollama17':
+                cmd += ['--model', self.ollama_asr_tag()]
+            self.command(cmd, timeout=10800)
             return {'selected_profile': selected, 'activation_after_load_check': True, 'accuracy_tested': False}
         # Legacy mode reuses the pre-existing model/settings.
         self.command([sys.executable, 'scripts/prefetch_asr.py', '--model', self.args.asr_model], timeout=7200, attempts=3)
@@ -399,11 +430,14 @@ class Installer:
             self.say('[PROGRESS] ' + status)
 
     def model(self, role):
-        name = MODEL_NAMES[role]
+        name = self.ollama_asr_tag() if role == 'asr' else MODEL_NAMES[role]
         if self.ollama_ok is None:
             self.report['ollama'] = self.ensure_ollama()
         if not self.ollama_ok:
             raise InstallFailure('本机 Ollama 接口尚未就绪。', code='OLLAMA_UNAVAILABLE', retryable=False)
+        if role == 'asr' and name not in OLLAMA_ASR_DOWNLOADABLE and not self.client.model_present(name):
+            raise InstallFailure('该自定义 ASR 模型未安装。仅自动下载 frozenlab/qwen3-asr 的 1.7b/0.6b 已知标签；其他标签请自行确认来源并安装。',
+                                 code='MODEL_SCOPE', retryable=False)
         if self.blocked_download and not self.client.model_present(name):
             raise InstallFailure('前一模型已确认下载网络/安全策略拒绝，暂缓相同来源的新下载。修复网络后重跑。',
                                  code='DOWNLOAD_NETWORK_BLOCKED', retryable=False)
@@ -441,7 +475,7 @@ class Installer:
         return 130 if cancelled else 1 if failed else 0
 
     def run(self):
-        self.say('VideoKnowledge 统一安装器 ' + INSTALLER_VERSION + ' | 服务0.11.0 / ASR引擎预览')
+        self.say('VideoKnowledge 统一安装器 ' + INSTALLER_VERSION + ' | 服务0.11.3 / Ollama ASR 自动补装')
         self.say('不清空笔记/模型；不关闭 TLS/重定向安全检查；不自动修改系统代理、DNS 或 hosts。')
         if self.args.profile == 'asr' and getattr(self.args,'asr_profile','keep') == 'legacy':
             if port_active(8765):
@@ -450,7 +484,10 @@ class Installer:
             self.step('恢复旧ASR设置（不下载、不删除模型）', lambda: self.command(
                 [sys.executable,'scripts/setup_asr_profile.py','--profile','legacy'],timeout=30))
             return self.finish()
-        self.network_report()
+        if self.args.profile == 'asr' and getattr(self.args,'asr_profile','keep') == 'ollama17':
+            self.say('[INFO] Selected Ollama ASR; missing model is downloaded through /api/pull; no PyTorch/Transformers installation.')
+        else:
+            self.network_report()
         if self.args.profile == 'diagnose':
             self.step('Ollama 本机接口', lambda: self.client.request_json('GET', '/api/version', timeout=5))
             self.step('本机模型列表', lambda: sorted(self.client.models()))
@@ -465,7 +502,7 @@ class Installer:
             return self.finish()
         self.step('检查 / 补齐系统工具', self.install_system_tools)
         handlers = {'runtime': self.runtime, 'review': self.review, 'video': self.video,
-                    'speaker': self.speaker, 'asr': self.asr,
+                    'speaker': self.speaker, 'asr': self.asr, 'ollama_asr': self.ollama_asr,
                     'text': lambda: self.model('text'), 'vision': lambda: self.model('vision')}
         try:
             # Core deps first. Models are sequential, never several multi-GB pulls at once.
@@ -483,7 +520,8 @@ def parse_args(argv=None):
     p.add_argument('--yes', action='store_true', help='Explicit consent to missing WinGet packages and their agreements')
     p.add_argument('--skip-system-tools', action='store_true')
     p.add_argument('--ollama-url', default='http://127.0.0.1:11434')
-    p.add_argument('--asr-profile',choices=['keep','legacy','qwen17','qwen06','whisper-large','whisper-turbo'],default='keep')
+    p.add_argument('--asr-profile',choices=['keep','legacy','ollama17','qwen17','qwen06','whisper-large','whisper-turbo'],default='keep')
+    p.add_argument('--ollama-asr-model', default=None, help='Exact tag shown by Ollama, default frozenlab/qwen3-asr:1.7b')
     p.add_argument('--asr-model', default=os.environ.get('VKN_ASR_MODEL', 'small'))
     p.add_argument('--retries', type=int, choices=range(1, 7), default=3)
     p.add_argument('--idle-timeout', type=float, default=180, help='Seconds without stream bytes')

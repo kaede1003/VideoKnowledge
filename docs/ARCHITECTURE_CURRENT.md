@@ -1,3 +1,5 @@
+> V0.11.1补充：`server/asr_profiles.py` 按本地profile选择 `StreamingWhisperEngine`、`QwenEngine`（独立Transformers worker）或 `OllamaASREngine`（本机HTTP）。新 `server/ollama_asr.py` 只编码非重叠owner PCM窗口，并经本机Ollama识别；`server/asr_settings.py`提供下次启动配置，失败不删除缓存/切换运行引擎。见 `UPGRADE_V0111_OLLAMA_ASR.md`。下述某些主干仍是历史0.7.2架构描述。
+
 > 0.10.1补充：caption-buffer.js在offscreen保存有限易失字幕裁剪，推理中仍采样；caption_review.py英文整词校验；生成前复核已存证据。文字稿短单元→逐条校验→原文锚点重试→还原发言。见UPGRADE_V0101.md。
 
 > 0.10.0补充：caption-review.js/content.js管理时间对齐证据，caption-background.js向本机路由，offscreen.js只裁剪已授权视频；server/caption_review.py本机视觉读取与局部同音守卫。无关内容过滤已退休，旧字段只保留不执行。详见UPGRADE_V0100.md。下面历史架构若冲突以当前状态为准。

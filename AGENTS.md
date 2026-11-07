@@ -4,7 +4,7 @@
 
 阅读顺序：`README.md` → `docs/STATUS.md` → `docs/KNOWN_ISSUES.md` → `docs/ARCHITECTURE_CURRENT.md` → `planning/BACKLOG.md` → `docs/ACCEPTANCE.md`。机器可读任务在 `planning/backlog.json`，验收在 `planning/acceptance.json`。
 
-仓库是已有产品的接手基线，不是空项目。当前扩展0.10.2、本地服务0.10.2、安装器0.8.1、协议5；旧0.7.2/0.7.1是历史组合。不得仅为看起来统一而修改版本号或推倒重写。
+仓库是已有产品的接手基线，不是空项目。当前扩展0.11.2、本地服务0.11.2、安装器0.8.3、协议5；旧0.7.2/0.7.1是历史组合。不得仅为看起来统一而修改版本号或推倒重写。
 
 ## 最重要的产品边界
 
@@ -75,3 +75,16 @@ Windows批处理必须ASCII/CRLF，中文说明放Markdown。不要改全局Git/
 ## V0.11.0 ASR接入预览
 
 Qwen不再仅是调研：代码见asr_profiles/qwen_engine/qwen_worker/qwen_protocol。但真实模型未运行，VK-044不可标done。仅在INSTALL_ALL显式选择并通过目标机加载运算后激活；不更改ASR_SETTINGS，不默默回退base或CPU。独立.venv-qwen不能提交Git。无词级时间戳不编造等距词时间或发言者归属；未知置信度为空。新的字幕/正文前端行为不变，原文保留，无关内容过滤不得恢复。
+
+## V0.11.1 Ollama ASR要求
+
+- 复用已装本地Ollama模型，只有用户显式切换且模型清单＋合成语音请求成功才保存下一次启动配置；**不要**重跑PyTorch安装、切换全局GPU驱动或自动拉远端模型。
+- 只接受本地11434，不通过代理/云端发送语音；无词级时间戳不编造词时间与说话人，保留不重叠owner窗口及原文语言。
+- ASR失败不改变durable音频处理水位、不删除音频、不静默降级；原Whisper/原生Qwen必须仍能回退。
+- `VK-045` 仍需Windows真实模型、端到端准确率/延迟验收，单元测试不标done。
+
+## V0.11.2 ASR设置与停止修复
+
+- Windows停止脚本的项目根目录必须安全传参，不要再次写成带末尾反斜杠的被引号包围参数。进程识别仍只能匹配本工程uvicorn服务，不杀其他Python/Ollama进程。
+- `/asr/config`保留扩展来源限制。针对无Origin的合法扩展本机请求，要求客户端声明格式有效的扩展ID；若请求同时含Origin与扩展ID，必须一致。浏览器普通网站跨域预检不能被放行。不能将接口改成任意来源可写。
+- 403诊断要区分本机8765接口和Ollama11434授权；两个问题不应混为一谈。真实Windows Edge测试仍单列。

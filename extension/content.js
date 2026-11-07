@@ -639,7 +639,7 @@
     downloadFile(data,'text/markdown;charset=utf-8',C.makeFilename(state.session.title+'_全部笔记','md'));
   });
   $('vkn-retry').addEventListener('click',async()=>{
-    try{await call('VKN_ASR_RETRY',{sessionKey:state.key});state.asrNote='已请求重试；确认Ollama文字模型已安装。';render();}
+    try{await call('VKN_ASR_RETRY',{sessionKey:state.key});state.asrNote='已请求重新识别缓存音频；请先确认 Ollama 语音模型能正常识别短音频。';render();}
     catch(e){showStatus(e.message,'error');}
   });
   $('vkn-lora-reset').addEventListener('click',()=>{if(state.loraRunning||state.loraBusy)return;state.loraRule=null;state.loraPlanError='';state.loraNote='已新建空规则，请输入完整条件';render();});

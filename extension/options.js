@@ -162,3 +162,46 @@ $('diagnose').addEventListener('click',async()=>{
   $('diarize').checked=c.speakerMode!=='off';$('maxSpeakers').value=String(c.maxSpeakers||8);
   $('textModel').value=c.textModel||'qwen2.5:3b';$('hotwords').value=c.hotwords||'';
 })().catch(e=>speechStatus('读取听写设置失败：'+e.message,true));
+
+// ASR is a server-wide engine.  Never change it mid-session or claim a profile
+// was activated before the operator restarts this project's local service.
+const asrStatus=(msg,bad=false)=>{const el=$('asrStatus');el.textContent=msg;el.style.color=bad?'#ffb9aa':'#b2e1fa';};
+const asrRequestHeaders=()=>({'X-VKN-Extension-ID':chrome.runtime.id});
+async function refreshAsr(){
+  try{
+    const response=await fetch('http://127.0.0.1:8765/asr/config',{method:'GET',headers:asrRequestHeaders(),redirect:'error',signal:AbortSignal.timeout(10000)});
+    if(!response.ok){
+      const info=await response.json().catch(()=>null);
+      throw Error('HTTP '+response.status+(info?.detail?' / '+info.detail:''));
+    }
+    const state=await response.json();
+    const names=state.installed_ollama_asr_models||[];
+    $('installedAsrModels').replaceChildren(...names.map(name=>{const el=document.createElement('option');el.value=name;return el;}));
+    const next=state.next_profile;
+    $('asrProfile').value=['legacy','ollama17'].includes(next)?next:'qwen17';
+    $('ollamaAsrModel').value=next==='ollama17'?state.next_model:(names.includes('frozenlab/qwen3-asr:1.7b')?'frozenlab/qwen3-asr:1.7b':names[0]||'frozenlab/qwen3-asr:1.7b');
+    asrStatus('当前运行：'+state.active_profile+' / '+state.active_model+'\n下次启动：'+next+' / '+state.next_model+
+      (state.restart_required?'\n设置已保存，但必须重启本地服务才会生效。':'\n当前与下次启动配置一致。')+
+      '\nOllama：'+(state.ollama_reachable?'已连接':'未连接')+'；已发现的ASR模型：'+(names.join('、')||'无'));
+  }catch(error){asrStatus('本地ASR配置读取失败：'+error.message+'。先确认8765端口正在运行当前服务；若为403，请检查扩展来源授权或是否加载了旧版插件。',true);}
+}
+$('refreshAsr').addEventListener('click',refreshAsr);
+$('saveAsrProfile').addEventListener('click',async()=>{
+  const b=$('saveAsrProfile');b.disabled=true;
+  asrStatus('正在校验本地模型。首次装载可能较慢；不发送视频或笔记，当前服务继续使用旧引擎。');
+  try{
+    const chosen=$('asrProfile').value;
+    if(!['legacy','ollama17'].includes(chosen))throw Error('原生Qwen请使用INSTALL_ALL安装和切换');
+    const model=$('ollamaAsrModel').value.trim();
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),210000);
+    let response;
+    try{response=await fetch('http://127.0.0.1:8765/asr/config',{method:'POST',headers:{'Content-Type':'application/json',...asrRequestHeaders()},
+      body:JSON.stringify({profile:chosen,model:chosen==='ollama17'?model:undefined}),redirect:'error',signal:controller.signal});}
+    finally{clearTimeout(timeout);}
+    const data=await response.json();
+    if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
+    asrStatus('已保存：'+data.selected+(data.model?' / '+data.model:'')+'。请停止当前听写，运行STOP_LOCAL_ASR.bat后重启START_LOCAL_ASR.bat。旧音频与笔记未修改。');
+  }catch(error){asrStatus('没有切换引擎：'+error.message+'。旧配置与记录保留。',true);}
+  finally{b.disabled=false;}
+});
+refreshAsr();

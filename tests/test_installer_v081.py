@@ -195,7 +195,7 @@ class RealLocalHTTP(unittest.TestCase):
 
 class InstallerContracts(unittest.TestCase):
     def test_all_profile_contains_every_component(self):
-        self.assertEqual(set(x['id'] for x in install_all.plan('all','small')),{'runtime','review','video','speaker','asr','text','vision'})
+        self.assertEqual(set(x['id'] for x in install_all.plan('all','small')),{'runtime','review','video','speaker','asr','text','vision','ollama_asr'})
     def test_plan_has_no_install_calls(self):
         with patch.object(install_all,'Installer') as mock:
             self.assertEqual(install_all.main(['--plan']),0);mock.assert_not_called()

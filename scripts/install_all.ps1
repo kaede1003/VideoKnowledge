@@ -3,8 +3,9 @@
 param(
     [ValidateSet('all','core','models','text','vision','asr','speaker','review','video','diagnose')]
     [string]$Profile = 'all',
-    [ValidateSet('keep','legacy','qwen17','qwen06','whisper-large','whisper-turbo')]
+    [ValidateSet('keep','legacy','ollama17','qwen17','qwen06','whisper-large','whisper-turbo')]
     [string]$AsrProfile = 'keep',
+    [string]$OllamaAsrModel = '',
     [switch]$Plan,
     [switch]$Yes,
     [switch]$SkipSystemTools
@@ -90,6 +91,7 @@ try {
         }
     }
     $runnerArgs = @('-u', (Join-Path $PSScriptRoot 'install_all.py'), '--profile', $Profile, '--asr-profile', $AsrProfile)
+    if ($OllamaAsrModel) { $runnerArgs += @('--ollama-asr-model', $OllamaAsrModel) }
     if ($Plan) { $runnerArgs += '--plan' }
     if ($Yes) { $runnerArgs += '--yes' }
     if ($SkipSystemTools) { $runnerArgs += '--skip-system-tools' }

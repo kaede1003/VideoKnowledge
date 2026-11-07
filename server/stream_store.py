@@ -236,12 +236,18 @@ class StreamStore:
             if job.final:
                 self._event(job.session,{'type':'done','message':'录音已停止；所有已缓存音频已转写。中文翻译/纠错如仍排队会继续补齐。'})
 
-    def fail(self, sid, message):
+    def fail(self, sid, message, *, cool_down=False):
         s=self.session(sid); tries=s['attempts']+1
+        # A persistent Ollama HTTP 5xx is usually not fixed by hammering the
+        # same model every few seconds. Leave the cursor and audio untouched.
+        retry_delay=900 if cool_down else min(60,2**min(tries,6))
+        text=str(message)[:300]
         with self.db:
             self.db.execute('UPDATE sessions SET attempts=?,retry_at=?,error=? WHERE id=?',
-                            (tries,time.time()+min(60,2**min(tries,6)),str(message)[:300],sid))
-            self._event(sid,{'type':'warning','message':'识别失败，音频保留并自动重试：'+str(message)[:240]})
+                            (tries,time.time()+retry_delay,text,sid))
+            notice=('Ollama重复失败，已暂停自动重试15分钟；音频仍在本地缓存。排查后点击“重试”。'
+                    if cool_down else '识别失败，音频保留并自动重试：'+text[:240])
+            self._event(sid,{'type':'warning','message':notice})
 
     def pending_sessions(self):
         return [r[0] for r in self.db.execute('SELECT id FROM sessions WHERE finished=0 AND received>processed ORDER BY updated')]

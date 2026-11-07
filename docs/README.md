@@ -1,3 +1,6 @@
+- [V0.11.2 停止脚本与配置403修复](UPGRADE_V0112_CONFIG_STOP.md) · 原生Windows待验收
+- [Ollama Qwen3-ASR-1.7B 安装与回退](UPGRADE_V0111_OLLAMA_ASR.md) · V0.11.1
+
 ## 当前 ASR 接入预览0.11.0
 
 - [升级说明](UPGRADE_V0110_ASR.md)
