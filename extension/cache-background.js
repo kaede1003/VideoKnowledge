@@ -5,11 +5,11 @@ async function vknCacheRequest(path, body={}) {
   try {
     const r=await fetch('http://127.0.0.1:8765/media-cache/'+path, {method:'POST',redirect:'error',
       headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
-    let data; try {data=await r.json();} catch {throw Error('VIDEO_SERVICE：本地服务未返回有效结果，请更新到0.11.0并重启。');}
+    let data; try {data=await r.json();} catch {throw Error('VIDEO_SERVICE：本地服务未返回有效结果，请更新本地服务并重启。');}
     if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'VIDEO_SERVICE：本地视频缓存服务返回错误 '+r.status);
     return data;
   } catch(e) {
-    if(controller.signal.aborted)throw Error('VIDEO_CONNECT_TIMEOUT：无法及时联系本地缓存服务，先启动0.11.0本地服务。');
+    if(controller.signal.aborted)throw Error('VIDEO_CONNECT_TIMEOUT：无法及时联系本地缓存服务，先启动当前版本本地服务。');
     if(String(e.message).startsWith('VIDEO_'))throw e;
     throw Error('VIDEO_CONNECT：无法连接本地缓存服务127.0.0.1:8765，请启动新版服务。');
   } finally {clearTimeout(timer);}
@@ -40,7 +40,7 @@ async function vknHandleCacheMessage(msg,sender) {
 // Never return cookie values to the content script/UI or persist them in storage.
 async function vknYoutubeSessionForRetry(id){
   const list=await vknCacheRequest('list');
-  if(!list.capabilities?.login_transfer)throw Error('VIDEO_UPGRADE：本地服务需要更新至0.11.0，尚未读取登录状态。');
+  if(!list.capabilities?.login_transfer)throw Error('VIDEO_UPGRADE：本地服务需要更新至当前版本，尚未读取登录状态。');
   const row=list.items?.find(x=>x.id===id);if(!row)throw Error('VIDEO_NOT_FOUND：缓存任务不存在');
   const u=new URL(row.url);
   if(u.protocol!=='https:'||!['www.youtube.com','youtube.com','m.youtube.com','youtu.be'].includes(u.hostname))throw Error('VIDEO_AUTH_SCOPE：本次登录仅用于YouTube');

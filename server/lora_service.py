@@ -98,7 +98,7 @@ async def ollama_vision(image_bytes: bytes, prompt: str, model: str) -> dict:
            '严格只根据当前图片像素判断是否满足所有主要筛选条件，不能臆造画外、镜头前后、声音、身份。'
            '返回唯一JSON对象：{"match":true或false,"caption":"图中可以直接看到的内容，清晰简洁","reason":"判断依据"}。'
            '图像过于模糊、不可判断、无关时 match=false。caption请用简洁英文描述可见视觉元素，适合常见图像LoRA训练；不得返回markdown。')
-    payload = {'model': model, 'stream': False, 'format': 'json', 'keep_alive':'5m', 'options': {'temperature': 0, 'num_predict':512, 'num_ctx':4096},
+    payload = {'model': model, 'stream': False, 'keep_alive':'5m', 'options': {'temperature': 0, 'num_predict':512, 'num_ctx':4096},
                'messages': [{'role': 'system', 'content': sys},
                             {'role': 'user', 'content': '采集要求：'+prompt+'\n仅基于附图评估。',
                              'images': [base64.b64encode(image_bytes).decode('ascii')]}]}

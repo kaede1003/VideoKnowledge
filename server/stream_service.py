@@ -81,7 +81,7 @@ class StreamManager:
         # That thread only owns job data; no processed cursor is advanced here.
 
     def transcribe_and_label(self, job):
-        return self.speakers.annotate(job, self.engine.transcribe_job(job))
+        return self.speakers.transcribe_and_annotate(job, self.engine)
 
     async def asr_worker(self):
         while True:

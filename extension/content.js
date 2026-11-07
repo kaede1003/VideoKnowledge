@@ -77,7 +77,7 @@
   const wrap=document.createElement('div');wrap.className='outer';
   wrap.innerHTML=`    <button class="bubble" id="vkn-bubble" title="打开视频笔记">笔记</button>
     <section class="panel" id="vkn-panel" hidden aria-label="视频笔记">
-      <header><div class="headtitle"><strong>视频笔记 <small class="version">0.11.0</small></strong></div><button id="vkn-settings" class="icon-btn" title="模型与听写设置" aria-label="设置">⚙</button><button class="close" id="vkn-close" aria-label="收起面板，不停止采集" title="收起面板，不停止采集">×</button></header>
+      <header><div class="headtitle"><strong>视频笔记 <small class="version">0.12.0</small></strong></div><button id="vkn-settings" class="icon-btn" title="模型与听写设置" aria-label="设置">⚙</button><button class="close" id="vkn-close" aria-label="收起面板，不停止采集" title="收起面板，不停止采集">×</button></header>
       <div class="body">
         <h2 class="video" id="vkn-title">正在检测视频…</h2>
         <div class="meta-line"><span><b id="vkn-count">0</b> 条记录</span><span id="vkn-time">00:00</span><span id="vkn-doc" hidden>本地</span><span id="vkn-source" hidden></span></div>
@@ -127,7 +127,7 @@
           <div class="row"><button id="vkn-retry" class="btn">重试翻译</button><button id="vkn-local-help" class="btn">安装帮助</button><button id="vkn-export-notebook" class="btn">导出全部笔记 / 原文</button><button id="vkn-export-audit" class="btn">导出核查 JSON</button></div>
           <details id="vkn-stage-details" class="sub-details"><summary>阶段摘要 <span class="muted" id="vkn-summary-tag">每5分钟</span></summary><p id="vkn-summary-hint" class="hint"></p><button id="vkn-summary-now" class="btn">立即生成阶段摘要</button><div id="vkn-summaries"></div></details>
           <details id="vkn-highlights-details" class="sub-details"><summary>本地关键句摘录</summary><div class="notes" id="vkn-highlights"></div></details>
-          <details class="sub-details" id="vkn-speakers"><summary>自动识别发言者</summary><p>无需填写名称。自动按声音区分发言者；有明确自述才标记主持人/嘉宾，无法确认时保留中性编号或待确认。旧结果不会自动重写。</p><div class="speaker-list" id="vkn-speaker-list"></div></details>
+          <details class="sub-details" id="vkn-speakers"><summary>自动识别声音与剧情角色</summary><p>先按音色分组，再通过多段台词推断旁白、系统播报、剧情角色；姓名另凭自我介绍或同步字幕。无法确定时保留编号，不将剧情提及的人名误当身份。</p><p class="muted" id="vkn-speaker-hint">有新记录后自动分析；结果是推测而非真实身份确认。</p><div class="speaker-list" id="vkn-speaker-list"></div></details>
           <details class="sub-details" id="vkn-lora-details"><summary>LoRA 图片采集</summary>
             <p>输入画面要求，保存后主动开始采图。视觉筛选需本地模型，默认关闭。</p>
             <textarea id="vkn-lora-prompt" class="lora-input" maxlength="900" placeholder="只保留清晰完整的单人全身镜头，每4秒一帧，最多80张。"></textarea>
@@ -176,7 +176,7 @@
     for(const sel of sels){const t=C.normalizeWhitespace(document.querySelector(sel)?.textContent||'');if(t.length>=3&&t.length<250)return t;}
     return C.normalizeWhitespace(document.querySelector('meta[property="og:title"]')?.content||document.title).replace(/\s*[-|_]\s*(YouTube|哔哩哔哩|bilibili).*$/i,'')||'未命名视频';
   }
-  function newSession(key){return {v:1,key,title:getTitle(),url:location.href,createdAt:new Date().toISOString(),updatedAt:'',duration:0,segments:[],aiMarkdown:'',aiGeneratedAt:'',aiCueCount:0,summaries:[],pendingSummary:[],speakerNames:{},speakerOverrides:{},textOverrides:{},documents:[],activeDocumentId:'',writing:C.normalizeWriting({correctPhrases:true}),captionOptions:{enabled:true,frames:true},captionObservations:[],captionReviews:{},viewPreferences:{}};}
+  function newSession(key){return {v:1,key,title:getTitle(),url:location.href,createdAt:new Date().toISOString(),updatedAt:'',duration:0,segments:[],aiMarkdown:'',aiGeneratedAt:'',aiCueCount:0,summaries:[],pendingSummary:[],speakerNames:{},speakerEvidence:{},speakerCandidates:[],speakerRoles:{},speakerRoleCandidates:[],speakerOverrides:{},textOverrides:{},documents:[],activeDocumentId:'',writing:C.normalizeWriting({correctPhrases:true}),captionOptions:{enabled:true,frames:true},captionObservations:[],captionReviews:{},viewPreferences:{}};}
   async function persistSnapshot(s){
     if(!s)return false;
     try{await call('VKN_SAVE_SESSION',{session:structuredClone(s)});return true;}
@@ -201,6 +201,8 @@
     const pageUrl=location.href;
     // Detach synchronously, before storage/network awaits. A cannot masquerade as B.
     clearTimeout(state.saveTimer);state.saveTimer=null;
+    clearTimeout(speakerRefreshTimer);speakerRefreshTimer=null;
+    speakerRoleHint='有新记录后自动分析角色类型；结果是推测而非真实身份确认。';
     state.session=null;state.key=key;state.switching=true;state.navigationPending=false;
     if(state.loraRunning||state.loraBusy)call('VKN_LORA_STOP').catch(()=>{});
     if(state.asrRunning||state.asrBusy)call('VKN_ASR_STOP').catch(()=>{});
@@ -225,10 +227,48 @@
         state.session.summaries ||= [];state.session.pendingSummary ||= [];
         state.lastAiCount=Number(state.session.aiCueCount)||0;
         const d=Date.parse(state.session.aiGeneratedAt);state.lastAiAt=Number.isFinite(d)?d:0;
+        if(state.session.segments.some(c=>c.speakerId))scheduleSpeakerRefresh();
       }
       applyWritingControls();
     }catch(e){if(epoch===state.navigationEpoch){state.session=null;state.lastError='无法载入当前视频记录：'+e.message;}}
     finally{if(epoch===state.navigationEpoch){state.switching=false;render();}}
+  }
+  // Role inference is incremental and optional: it must never block live ASR
+  // or submit audio to the text model. Saving first prevents stale snapshots.
+  let speakerCheckBusy=false,speakerRefreshTimer=null;
+  let speakerRoleHint='有新记录后自动分析角色类型；结果是推测而非真实身份确认。';
+  const lastSpeakerCheck=new Map();
+  async function refreshSpeakerRoles(force=false){
+    const snapshot=currentSession();if(!snapshot||speakerCheckBusy)return;
+    const trusted=(snapshot.segments||[]).filter(c=>c.speakerId&&['estimated','manual'].includes(c.speakerStatus)).length;
+    if(trusted<(force?1:4))return;
+    if(!force&&Date.now()-(lastSpeakerCheck.get(snapshot.key)||0)<45000)return;
+    speakerCheckBusy=true;
+    speakerRoleHint='正在用本地文字模型分析不同声音的台词…';
+    if($('vkn-speakers').open)renderSpeakers();
+    try{
+      if(!await saveNow()||currentSession()!==snapshot)return;
+      lastSpeakerCheck.set(snapshot.key,Date.now());
+      const result=await call('VKN_IDENTIFY_SPEAKERS',{sessionKey:snapshot.key});
+      if(currentSession()!==snapshot)return;
+      speakerRoleHint=result.roleUpdated?`已推测 ${result.roleUpdated} 组声音的剧情类型，可展开查看证据。`:
+        (result.reason||'暂无新的可靠角色类别依据，原有说话人编号保留。');
+      if(result.updated||result.roleUpdated){
+        const fresh=await call('VKN_GET_SESSION',{key:snapshot.key});
+        if(currentSession()!==snapshot||!fresh)return;
+        snapshot.speakerNames={...snapshot.speakerNames,...fresh.speakerNames};
+        snapshot.speakerEvidence={...snapshot.speakerEvidence,...fresh.speakerEvidence};
+        snapshot.speakerCandidates=fresh.speakerCandidates||snapshot.speakerCandidates;
+        snapshot.speakerRoles={...snapshot.speakerRoles,...fresh.speakerRoles};
+        snapshot.speakerRoleCandidates=fresh.speakerRoleCandidates||snapshot.speakerRoleCandidates;
+        scheduleSave();render();
+      }else if($('vkn-speakers').open)renderSpeakers();
+    }catch(e){if(currentSession()===snapshot){speakerRoleHint='角色分析暂不可用，可能是本地文字模型未就绪；原始听写仍保留。';if($('vkn-speakers').open)renderSpeakers();console.warn('Automatic speaker role analysis deferred:',String(e?.message||e));}}
+    finally{speakerCheckBusy=false;}
+  }
+  function scheduleSpeakerRefresh(){
+    if(speakerRefreshTimer)return;
+    speakerRefreshTimer=setTimeout(()=>{speakerRefreshTimer=null;void refreshSpeakerRoles(false);},18000);
   }
   function append(items){
     if(!currentSession()||!items?.length||(!state.active&&!items.some(x=>x.source==='local-asr')))return;
@@ -239,6 +279,7 @@
     current.pendingSummary.push(...fresh);
     if(fresh.length&&!state.summaryStartedAt)state.summaryStartedAt=Date.now();
     scheduleSave();render();
+    if(fresh.some(c=>c.speakerId))scheduleSpeakerRefresh();
     checkCaptionMatches().catch(()=>{});
   }
   const boundVideos=new WeakSet();
@@ -368,6 +409,7 @@
   }
   function renderSpeakers(){
     const el=$('vkn-speaker-list');el.replaceChildren();
+    $('vkn-speaker-hint').textContent=speakerRoleHint;
     const catalog=C.speakerCatalog(state.session||{});
     if(!catalog.length){el.textContent='等待自动声音分组，无需手工命名。首次请运行 INSTALL_SPEAKER_MODEL.bat 并重启本地服务。多人抢话或声音不足时可能暂不归属；旧字幕没有原音，不能凭文字补出声音。';return;}
     for(const speaker of catalog){
@@ -375,7 +417,7 @@
       const label=document.createElement('strong');label.textContent=speaker.label;
       const info=document.createElement('p');info.className='muted';info.textContent=speaker.reason;
       row.append(label,info);
-      if(speaker.evidence){const q=document.createElement('p');q.textContent='['+C.formatTime(speaker.evidenceTime)+'] 角色依据：'+speaker.evidence;row.append(q);}
+      if(speaker.evidence){const q=document.createElement('p');q.textContent='['+C.formatTime(speaker.evidenceTime)+'] 原话依据：'+speaker.evidence;row.append(q);}
       el.append(row);
     }
   }
@@ -556,7 +598,7 @@
     if(state.working||!currentSession())return;
     pauseCaptionWork();
     const captured=state.session,snapshot=C.cuesWithSpeakers(captured),writing=formWriting();
-    let plan;try{plan=C.prepareWriting(snapshot,writing,6000,130000,captured);}catch(e){state.lastError=e.message;render();return;}
+    let plan;try{plan=C.selectWritingCues(snapshot,writing);}catch(e){state.lastError=e.message;render();return;}
     if(C.documentHistory(captured).length>=100){state.lastError='本视频已有100份结果，请先导出备份，再另建视频笔记；旧结果不会被自动覆盖。';render();return;}
     captured.writing=writing;
     const requestId='deep-'+Date.now()+'-'+Math.random().toString(36).slice(2);state.aiRequestId=requestId;
@@ -564,7 +606,7 @@
     try {
       await refreshSettings();if(state.aiRequestId!==requestId)return;
       if(!state.settings.configured)throw Error(state.settings.error||'AI_CONFIG_STATUS：请在设置页验证模型连接。');
-      const res=await call('VKN_AI_GENERATE',{requestId,cues:snapshot,writing,meta:{title:captured.title,url:captured.url,captionObservations:captured.captionOptions?.enabled===false?[]:(CP?.cleanObservations(captured.captionObservations)||[])}});
+      const res=await call('VKN_AI_GENERATE',{requestId,sessionKey:captured.key,cues:snapshot,writing,meta:{title:captured.title,url:captured.url,captionObservations:captured.captionOptions?.enabled===false?[]:(CP?.cleanObservations(captured.captionObservations)||[])}});
       if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;
       for(const [id,review] of Object.entries(res.captionReviews||{})){
         const raw=state.session.segments.find(c=>c.id===id),old=state.session.captionReviews?.[id];
@@ -615,7 +657,10 @@
     if(state.session){state.session.viewPreferences ||= {};state.session.viewPreferences[key]=$(id).open;scheduleSave();}
     render();
   });
-  for(const id of ['vkn-stage-details','vkn-highlights-details','vkn-speakers'])$(id).addEventListener('toggle',render);
+  for(const id of ['vkn-stage-details','vkn-highlights-details'])$(id).addEventListener('toggle',render);
+  $('vkn-speakers').addEventListener('toggle',()=>{
+    render();if($('vkn-speakers').open)void refreshSpeakerRoles(true);
+  });
   $('vkn-video-cache').addEventListener('click',async()=>{
     if(!currentSession())return;
     const cacheSession=state.session,cacheUrl=location.href;
@@ -762,7 +807,7 @@
     if(state.asrRunning||state.asrDraining){showStatus('请先停止听写并等待缓存处理结束，再清空记录。','error');return;}
     await call('VKN_CLEAR_SESSION',{key:state.key});
     state.session.captionObservations=[];state.session.captionReviews={};resetCaptionRuntime();
-    state.session.documents=[];state.session.activeDocumentId='';state.session.speakerNames={};state.session.speakerOverrides={};state.session.textOverrides={};state.session.segments=[];state.session.aiMarkdown='';state.session.aiGeneratedAt='';state.session.aiCueCount=0;state.session.summaries=[];state.session.pendingSummary=[];state.summaryStartedAt=0;state.lastAiCount=0;state.lastError='';
+    state.session.documents=[];state.session.activeDocumentId='';state.session.speakerNames={};state.session.speakerEvidence={};state.session.speakerCandidates=[];state.session.speakerRoles={};state.session.speakerRoleCandidates=[];state.session.speakerOverrides={};state.session.textOverrides={};state.session.segments=[];state.session.aiMarkdown='';state.session.aiGeneratedAt='';state.session.aiCueCount=0;state.session.summaries=[];state.session.pendingSummary=[];state.summaryStartedAt=0;state.lastAiCount=0;state.lastError='';
     scheduleSave();render();
   });
   chrome.runtime.onMessage.addListener((msg,sender,reply)=>{

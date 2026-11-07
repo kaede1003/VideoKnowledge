@@ -37,7 +37,7 @@ async function vknReviewPhrases(cues,cfg,meta,options={}) {
  const batches=VknContextReview.batches(cues);report.totalBatches=batches.length;
  // Detect local validator once before spending model time.
  try {const r=await fetch('http://127.0.0.1:8765/health',{signal:AbortSignal.timeout(5000),redirect:'error'});const j=await r.json();if(!r.ok||!j.context_review?.available)throw Error('校验组件未就绪');}
- catch{report.failed=batches.length||1;report.note='请运行 INSTALL_ALL.bat 补齐组件并启动0.11.0服务；本轮未自动纠词';return {cues,report};}
+ catch{report.failed=batches.length||1;report.note='请运行 INSTALL_ALL.bat 补齐组件并启动当前版本本地服务；本轮未自动纠词';return {cues,report};}
  for(let i=0;i<batches.length;i++){
    throwIfCancelled(options.signal);options.phaseProgress?.('校对短语',i+1,batches.length);
    try{const p=VknContextReview.prompt(batches[i],meta);const raw=await askModel(cfg,p.system,p.user,{...options,maxTokens:1200,timeoutMs:45000});

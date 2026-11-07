@@ -1,4 +1,4 @@
-importScripts('caption-review.js','caption-background.js','core.js','local-origin.js','ai-config.js','asr-background.js', 'lora-background.js','cache-background.js','context-review.js');
+importScripts('caption-review.js','caption-background.js','core.js','longform.js','speaker-identity.js','speaker-role.js','local-origin.js','ai-config.js','asr-background.js', 'lora-background.js','cache-background.js','context-review.js','longform-background.js','identity-background.js');
 /* Edge MV3 service worker: privileged ASR, local cache and opt-in LLM requests. */
 'use strict';
 
@@ -43,6 +43,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       case 'VKN_CLEAR_SESSION': return await notebookWrite(()=>chrome.storage.local.remove(dbKey(message.key))); 
       case 'VKN_GET_PLATFORM': throw Error('CAPTIONS_REMOVED：在线字幕采集已移除，请使用语音听写。');
       case 'VKN_AI_STATUS': return await getAiStatus();
+      case 'VKN_IDENTIFY_SPEAKERS': return await vknIdentifySpeakers(message.sessionKey);
       case 'VKN_FILTER_REVIEW': throw Error('FILTER_REMOVED：无关内容过滤已移除，全部记录保留。');
       case 'VKN_AI_TEST': return await runAiJob(message,sender,'test');
       case 'VKN_AI_CANCEL': return cancelAiJob(message,sender);
@@ -93,7 +94,11 @@ async function writeSession(s) {
       createdAt:String(x.createdAt||'').slice(0,60),count:Math.max(0,Number(x.count)||0)
     })),
     textOverrides:VideoKnowledgeCore.cleanTextOverrides(s.textOverrides??prior?.textOverrides),
-    speakerNames:VideoKnowledgeCore.cleanSpeakerNames(s.speakerNames??prior?.speakerNames),
+    speakerNames:VideoKnowledgeCore.cleanSpeakerNames({...prior?.speakerNames,...s.speakerNames}),
+    speakerRoles:VideoKnowledgeCore.cleanSpeakerRoles({...prior?.speakerRoles,...s.speakerRoles}),
+    speakerRoleCandidates:VideoKnowledgeCore.cleanSpeakerRoleCandidates([...(prior?.speakerRoleCandidates||[]),...(s.speakerRoleCandidates||[])]),
+    speakerEvidence:VideoKnowledgeCore.cleanSpeakerEvidence({...prior?.speakerEvidence,...s.speakerEvidence}),
+    speakerCandidates:VideoKnowledgeCore.cleanSpeakerCandidates([...(prior?.speakerCandidates||[]),...(s.speakerCandidates||[])]),
     speakerOverrides:VideoKnowledgeCore.cleanSpeakerOverrides(s.speakerOverrides??prior?.speakerOverrides),
     pendingSummary:pending
 
@@ -125,7 +130,7 @@ async function runAiJob(message,sender,kind){
     const opts={phaseProgress:(phase,index,total)=>{if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:'VKN_WRITING_PROGRESS',requestId:job.id,phase,index,total}).catch(()=>{});},signal:job.controller.signal,writing:message.writing,filter:message.filter,progress:(index,total)=>{
       if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:"VKN_WRITING_PROGRESS",requestId:job.id,index,total}).catch(()=>{});
     }};
-    const result=kind==='test'?await testAiConnection(opts):await generateAiMarkdown(message.cues,message.meta,opts);
+    const result=kind==='test'?await testAiConnection(opts):await generateAiMarkdown(message.cues,{...(message.meta||{}),sessionKey:message.sessionKey},opts);
     throwIfCancelled(opts.signal);return result;
   }finally{if(aiJobs.get(key)===job)aiJobs.delete(key);}
 }
@@ -189,9 +194,21 @@ async function askModel(cfg,system,user,options={}){
       payload.temperature=0;
       payload.response_format={type:'json_schema',json_schema:{name:'vkn_punctuation',strict:true,schema:options.jsonSchema}};
     }
-    const r=await fetch(url.toString(),{method:'POST',redirect:'error',signal:controller.signal,
+    const send=()=>fetch(url.toString(),{method:'POST',redirect:'error',signal:controller.signal,
       headers:{'content-type':'application/json',...(cfg.apiKey?{'authorization':'Bearer '+cfg.apiKey}:{})},
       body:JSON.stringify(payload)});
+    let r=await send();
+    // Some llama.cpp runners can reject a schema-constrained response with a
+    // grammar-stack error. Retry ONCE without the constraint, only for this
+    // specific error; punctuation results still pass the original strict
+    // post-validation and no raw transcript is overwritten.
+    if(r.status>=500 && payload.response_format && VknAiConfig.isLocalOllama(cfg.endpoint)){
+      let reason='';try{reason=(await r.text()).slice(0,1600);}catch{}
+      if(/(?:empty grammar stack|grammar.*(?:invalid|fail)|gbnf)/i.test(reason)){
+        delete payload.response_format;
+        r=await send();
+      }
+    }
     if(!r.ok){
       if(r.status===401||r.status===403){
         if(VknAiConfig.isLocalOllama(cfg.endpoint))throw Error(VknLocalOrigin.error(r.status,chrome.runtime.id));
@@ -217,6 +234,13 @@ async function askModel(cfg,system,user,options={}){
 async function generateAiMarkdown(cues,meta={},options={}) {
   throwIfCancelled(options.signal);
   const C=VideoKnowledgeCore;
+  const selectedPlan=C.selectWritingCues(cues,options.writing);
+  // Long video requests must never enter prepareWriting's historical 130k-char cap.
+  // Batch evidence, resumable chapters and output-length continuation are isolated.
+  if(meta.sessionKey && validKey(meta.sessionKey) && selectedPlan.cues.reduce((n,c)=>n+VknLongform.estimateTokens(C.transcriptLine(c)),0)>4300){
+    const cfg=await readAiConfig();await preflightAi(cfg,options);
+    return vknRunLongform(cues,meta,options,cfg);
+  }
   let plan=C.prepareWriting(cues,options.writing,6000,130000,meta||{});
   const cfg=await readAiConfig();await preflightAi(cfg,options);
   const captionCheck=await vknReviewStoredCaptions(plan.cues,meta.captionObservations,options);
@@ -326,6 +350,9 @@ async function vknPersistAsr(msg){
     if(i>=0)old.pendingSummary[i]=item;
     else if(!exists)old.pendingSummary.push(item);
     await writeSession(old);
+    // Fire-and-forget: no extra AI request on the critical audio delivery path.
+    if(!exists&&old.segments.length>=12&&old.segments.length%16===0)
+      Promise.resolve().then(()=>vknIdentifySpeakers(key)).catch(()=>{});
     return {saved:true};
   });
 }

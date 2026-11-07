@@ -161,6 +161,69 @@ def at_word(start, end, turns):
         return None, 'uncertain', '说话人时间覆盖不足'
     return who, 'estimated', ''
 
+def acoustic_regions(turns, start, end):
+    """Partition owned audio by *acoustic* speaker changes, never ASR tokens.
+
+    Every sample within [start, end] belongs to exactly one region. An overlap
+    is one uncertain region, not two copies of the same speech. A missing
+    diarization turn is an unassigned region rather than dropped audio.
+    """
+    if not (0 <= start < end):
+        raise ValueError('invalid owned audio interval')
+    clipped = []
+    edges = [start, end]
+    for turn in turns:
+        a = max(start, float(turn['start']))
+        b = min(end, float(turn['end']))
+        if a >= b: continue
+        clipped.append((a, b, int(turn['local'])))
+        edges.extend((a, b))
+    edges = sorted(set(round(v, 6) for v in edges))
+    spans = []
+    for a, b in zip(edges, edges[1:]):
+        if b <= a: continue
+        mid = (a + b) / 2
+        active = {who for x, y, who in clipped if x <= mid < y}
+        who = next(iter(active)) if len(active) == 1 else None
+        mode = 'speech' if len(active) == 1 else ('overlap' if active else 'unknown')
+        if spans and spans[-1][2:] == (who, mode):
+            spans[-1] = (spans[-1][0], b, who, mode)
+        else:
+            spans.append((a, b, who, mode))
+    return spans
+
+
+def slice_audio_job(job, start, end):
+    """Construct a transient owned-audio job retaining each packet's media clock.
+
+    This is never persisted independently, and cannot change the durable packet
+    sequence or ASR commit watermark. Subcalls only see their assigned PCM.
+    """
+    from .stream_protocol import AUDIO, Packet
+    from .stream_store import Job
+    if not 0 <= start < end <= len(job.pcm) / RATE + 1e-6:
+        raise ValueError('invalid ASR speaker slice')
+    left = round(start * RATE)
+    right = round(end * RATE)
+    pieces = []
+    offset = 0
+    for packet in job.packets:
+        frames = len(packet.pcm) // 2
+        a, b = max(left, offset), min(right, offset + frames)
+        if a < b:
+            f0, f1 = (a - offset) / frames, (b - offset) / frames
+            t0 = packet.start + (packet.end - packet.start) * f0
+            t1 = packet.start + (packet.end - packet.start) * f1
+            pcm = packet.pcm[2 * (a - offset):2 * (b - offset)]
+            pieces.append(Packet(packet.seq, t0, t1, AUDIO, pcm))
+        offset += frames
+    length = sum(p.duration for p in pieces)
+    if not pieces or length <= 0 or sum(len(p.pcm) for p in pieces) != 2 * (right - left):
+        raise ValueError('speaker slice did not preserve all PCM samples')
+    return Job(job.session, pieces, job.commit_seq, 0, length, job.options,
+               '', final=False, reset=False, speaker_state=deepcopy(job.speaker_state))
+
+
 class SpeakerAnnotator:
     def __init__(self, factory=SherpaBackend):
         self.factory = factory
@@ -169,6 +232,103 @@ class SpeakerAnnotator:
     @staticmethod
     def strip_private(cue):
         return {k: v for k, v in cue.items() if k not in ('_words', '_audioStart', '_audioEnd')}
+
+    def transcribe_and_annotate(self, job, engine):
+        """Ollama: diarize the AUDIO first, then transcribe distinct voices.
+
+        A text-only transcript has no evidence to distribute its words across
+        multiple speakers. For a single dominant voice, reuse the full-window
+        ASR result; for multiple acoustic turns, run independent ASR on bounded
+        chunks. All partial results stay in memory until StreamStore.commit,
+        so a later model failure cannot advance the durable audio watermark.
+        """
+        if not job.packets or not job.options.get('diarize', False):
+            return self.annotate(job, engine.transcribe_job(job))
+        if getattr(engine, 'backend_name', '') != 'ollama-qwen3-asr':
+            return self.annotate(job, engine.transcribe_job(job))
+
+        def plain(status, reason):
+            return [{**self.strip_private(row), 'speakerStatus': status,
+                     'speakerReason': reason}
+                    for row in engine.transcribe_job(job)]
+
+        # Audio analysis is optional. If its files/runtime are unavailable,
+        # retain one complete ASR result instead of failing the recognition.
+        try:
+            if self.backend is None: self.backend = self.factory()
+            pcm = np.frombuffer(job.pcm, dtype='<i2').astype(np.float32) / 32768.
+            turns, vectors = self.backend.analyze(pcm)
+            mapping, new_state = match_speakers(
+                vectors, job.speaker_state, job.options.get('maxSpeakers', 6))
+            regions = acoustic_regions(turns, job.owner_start, job.owner_end)
+        except Exception as exc:
+            return plain('unavailable', '声学说话人分析失败，原文保留：' + str(exc)[:120])
+
+        known = {local for a, b, local, _ in regions if local is not None}
+        if not known:
+            return plain('uncertain', '没有可靠的声学发言区间，未猜测说话人')
+
+        def label(row, local, mode):
+            ident, similarity = mapping.get(local, (None, None))
+            if mode == 'overlap':
+                status, reason = 'overlap', '多人声音交叠，无法单独归属'
+            elif mode == 'unknown':
+                status, reason = 'uncertain', '此段未检测到可靠的声音归属'
+            elif ident is None:
+                status, reason = 'uncertain', '声纹较短或相似度不足，未强行归属'
+            else:
+                status, reason = 'estimated', '按音频声学分段估计；没有词级时间戳'
+            cue = {**self.strip_private(row),
+                   'speakerId': f'{job.session}:spk{ident}' if status == 'estimated' else '',
+                   'speakerStatus': status, 'speakerReason': reason,
+                   'speakerTiming': 'acoustic_turn'}
+            if status == 'estimated' and similarity is not None:
+                cue['speakerSimilarity'] = round(float(similarity), 3)
+            if 'word_timestamps_missing' in cue.get('qualityFlags', []):
+                cue['reviewReason'] = str(cue.get('reviewReason', '')).replace(
+                    '不强行分配说话人', '归属由音频声学分段估计，非词级对齐')
+            return cue
+
+        # Exactly one detected speaker: the WHOLE owner window can be labelled
+        # only if it is substantially covered by that one voice. Otherwise the
+        # unassigned portion may contain another speaker's speech.
+        if len(known) == 1 and not any(m == 'overlap' for _, _, _, m in regions):
+            local = next(iter(known))
+            coverage = sum(b-a for a, b, who, _ in regions if who == local)
+            dominant = (coverage >= .90 * (job.owner_end - job.owner_start) and
+                        not any(b-a > .6 for a,b,who,_ in regions if who is None))
+            rows = engine.transcribe_job(job)
+            result = [label(row, local, 'speech') if dominant else
+                      label(row, None, 'unknown') for row in rows]
+            job.speaker_state = new_state
+            return result
+
+        # Multiple different voices require independently transcribed AUDIO;
+        # labelling one mixed Ollama transcript with a single voice is invalid.
+        # Very rapid alternation is held for review rather than issuing dozens
+        # of tiny (often hallucinated) ASR requests.
+        if len(regions) > 8 or any(b-a < .25 and mode != 'unknown'
+                                    for a,b,_,mode in regions):
+            return plain('uncertain', '说话人切换过快或片段过短，未强行归属')
+
+        all_rows = []
+        for a, b, local, mode in regions:
+            subjob = slice_audio_job(job, a, b)
+            rows = engine.transcribe_job(subjob)  # Errors MUST propagate.
+            if not rows:
+                # A short ASR fragment may be missed even when the complete
+                # utterance is audible. Do not silently discard this region:
+                # fall back to the full original audio without speaker guesses.
+                piece = np.frombuffer(subjob.pcm, dtype='<i2')
+                if piece.size and float(np.max(np.abs(piece.astype(np.int32)))) >= 100:
+                    return plain('uncertain',
+                                 '按人声切分后有片段未识别，已退回完整音频转写；待回听')
+            for row in rows:
+                all_rows.append(label(row, local, mode))
+        # Commit caller persists both these rows and the session voice profiles
+        # atomically. Never update the speaker state on partial inference.
+        job.speaker_state = new_state
+        return all_rows
 
     def annotate(self, job, segments):
         if not job.options.get('diarize', False):

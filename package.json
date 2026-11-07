@@ -1,6 +1,6 @@
 {
   "name": "video-knowledge-notebook",
-  "version": "0.10.0",
+  "version": "0.12.1",
   "private": true,
   "license": "UNLICENSED",
   "description": "Local speech notes with reversible subtitle evidence, contextual phrase review and compact reader.",

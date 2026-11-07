@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "视频知识笔记 · Video Knowledge Notebook",
   "short_name": "视频知识笔记",
-  "version": "0.11.3",
-  "description": "本地听写与字幕对照校对；完整记录，按发言合并，输出知识、剧本、小说或文字稿。",
+  "version": "0.12.1",
+  "description": "本地听写、音色声纹分组、旁白/系统/剧情角色类型推测、字幕对照与可恢复长文整理。",
   "permissions": [
     "activeTab",
     "offscreen",

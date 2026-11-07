@@ -56,6 +56,42 @@
     for(const [key,name] of Object.entries(value).slice(0,500))if(validSpeakerId(key)&&cleanSpeakerName(name))out[key]=cleanSpeakerName(name);
     return out;
   }
+  function cleanSpeakerEvidence(value){
+    const out={};if(!value||typeof value!=='object')return out;
+    for(const [id,v] of Object.entries(value).slice(0,200)){
+      if(!validSpeakerId(id)||!v||typeof v!=='object'||!['self_intro','caption_label'].includes(v.basis))continue;
+      const name=cleanSpeakerName(v.name),quote=normalizeWhitespace(v.quote).slice(0,160);
+      if(!name||!quote)continue;
+      out[id]={speakerId:id,name,cueId:String(v.cueId||'').slice(0,100),time:Math.max(0,Number(v.time)||0),quote,basis:v.basis,reason:String(v.reason||'').slice(0,160)};
+    }return out;
+  }
+  function cleanSpeakerCandidates(value){
+    const out=[],seen=new Set();for(const v of (Array.isArray(value)?value:[]).slice(-200)){
+      if(!v||!validSpeakerId(v.speakerId))continue;
+      const name=cleanSpeakerName(v.name),quote=normalizeWhitespace(v.quote).slice(0,160);if(!name||!quote)continue;
+      const key=v.speakerId+'|'+name+'|'+String(v.cueId||'');if(seen.has(key))continue;seen.add(key);
+      out.push({speakerId:v.speakerId,name,cueId:String(v.cueId||'').slice(0,100),time:Math.max(0,Number(v.time)||0),quote,basis:String(v.basis||'narrative_hint').slice(0,32),reason:String(v.reason||'待核对').slice(0,160)});
+    }return out.slice(-100);
+  }
+  const SPEAKER_ROLE_LABELS={narrator:'剧情旁白',system:'系统播报',character:'剧情角色',host:'主持人',guest:'嘉宾'};
+  function cleanSpeakerRoles(value){
+    const out={};if(!value||typeof value!=='object')return out;
+    for(const [id,item] of Object.entries(value).slice(0,200)){
+      if(!validSpeakerId(id)||!item||!SPEAKER_ROLE_LABELS[item.role])continue;
+      const cueIds=(Array.isArray(item.cueIds)?item.cueIds:[]).filter(x=>/^[a-f0-9]{32}:\d+:\d+$/.test(String(x))).map(String).slice(0,5);
+      const quotes=(Array.isArray(item.quotes)?item.quotes:[]).map(x=>normalizeWhitespace(x).slice(0,160)).filter(Boolean).slice(0,5);
+      if(!cueIds.length||!quotes.length)continue;
+      out[id]={role:item.role,label:SPEAKER_ROLE_LABELS[item.role],basis:['explicit_or_context','dialogue_context'].includes(item.basis)?item.basis:'dialogue_context',
+        cueIds,quotes,time:Math.max(0,Number(item.time)||0),reason:normalizeWhitespace(item.reason).slice(0,150),confidence:'estimated'};
+    }return out;
+  }
+  function cleanSpeakerRoleCandidates(value){
+    const result=[];
+    for(const item of (Array.isArray(value)?value:[]).slice(-60)){
+      if(!item||!validSpeakerId(item.speakerId)||!SPEAKER_ROLE_LABELS[item.role])continue;
+      result.push({speakerId:item.speakerId,role:item.role,reason:normalizeWhitespace(item.reason).slice(0,150)});
+    }return result;
+  }
   function cleanSpeakerOverrides(value){
     const out={};if(!value||typeof value!=='object')return out;
     for(const [key,id] of Object.entries(value).slice(0,50000))if(/^[a-f0-9]{32}:\d+:\d+$/.test(key)&&(id===''||validSpeakerId(id)))out[key]=id;
@@ -91,12 +127,13 @@
   }
   function auditExport(session){
     // No secrets/configuration, voice embeddings, or browser account information.
-    return {format:'vkn-audit-1',extensionVersion:'0.11.0',title:session.title||'',url:safeUrl(session.url||''),
+    return {format:'vkn-audit-1',extensionVersion:'0.12.1',title:session.title||'',url:safeUrl(session.url||''),
       captionOptions:session.captionOptions||{},captionReviews:cleanCaptionReviews(session.captionReviews),captionObservations:session.captionObservations||[],
       contentFilter:normalizeFilter(session.contentFilter),filterOverrides:cleanFilterOverrides(session.filterOverrides),filterAssessments:cleanFilterAssessments(session.filterAssessments),
       exportedAt:new Date().toISOString(),warning:'这是机器转写/译文及用户修订，不是原音核验；没有音频。',
       segments:sortedCues(session.segments||[]),textOverrides:cleanTextOverrides(session.textOverrides),
-      speakerNames:cleanSpeakerNames(session.speakerNames),speakerOverrides:cleanSpeakerOverrides(session.speakerOverrides),
+      speakerNames:cleanSpeakerNames(session.speakerNames),speakerEvidence:cleanSpeakerEvidence(session.speakerEvidence),speakerCandidates:cleanSpeakerCandidates(session.speakerCandidates),
+      speakerRoles:cleanSpeakerRoles(session.speakerRoles),speakerRoleCandidates:cleanSpeakerRoleCandidates(session.speakerRoleCandidates),speakerOverrides:cleanSpeakerOverrides(session.speakerOverrides),
       documents:documentHistory(session),summaries:Array.isArray(session.summaries)?session.summaries:[]};
   }
   function speechOptions(value={}){
@@ -122,7 +159,7 @@
     return null;
   }
   function speakerCatalog(session){
-    const result=[],byId=new Map(),names=cleanSpeakerNames(session?.speakerNames);
+    const result=[],byId=new Map(),names=cleanSpeakerNames(session?.speakerNames),evidence=cleanSpeakerEvidence(session?.speakerEvidence),roleLabels=cleanSpeakerRoles(session?.speakerRoles);
     for(const cue of sortedCues(session?.segments||[])){
       const id=cue.speakerId;if(!validSpeakerId(id))continue;
       let entry=byId.get(id);
@@ -131,10 +168,16 @@
       if(evidence)entry.roles.set(evidence.role,evidence);
     }
     return result.map(({roles,...entry})=>{
-      if(names[entry.id])return {...entry,label:names[entry.id],automatic:false,reason:'沿用以前已保存名称；新记录无需命名'};
+      const role=roleLabels[entry.id];
+      const rolePrefix=role?(role.label+'（推测） · '):'';
+      if(names[entry.id])return {...entry,label:rolePrefix+(evidence[entry.id]?names[entry.id]+' · '+entry.label:names[entry.id]),automatic:!!evidence[entry.id],
+        role:role?.label||'',evidence:evidence[entry.id]?.quote||role?.quotes?.[0]||'',evidenceTime:evidence[entry.id]?.time??role?.time,identityBasis:evidence[entry.id]?.basis,
+        reason:role?'依据多个发言的语义功能推测角色类型；姓名另按自我介绍或字幕标记：'+(role.reason||'待核验'):(evidence[entry.id]?'依据自报姓名或字幕标记的候选名；尚未人工核验原音':'沿用以前已保存名称；未提供新的归属依据')};
+      if(role)return {...entry,label:rolePrefix+entry.label,role:role.label,evidence:role.quotes[0],evidenceTime:role.time,
+        reason:'根据已分离的声音及其多段台词推测角色类型；不是声纹推断出的真实身份。'+role.reason};
       if(roles.size===1){const e=[...roles.values()][0];return {...entry,label:e.role+' · '+entry.label,role:e.role,
         evidence:e.evidence,evidenceTime:e.time,reason:'根据自述角色自动标记，仍未核验；不识别真实身份'};}
-      return {...entry,reason:roles.size>1?'角色自述存在冲突，保留中性声音编号':'按声音自动分组；没有明确角色证据，不猜姓名、性别或身份'};
+      return {...entry,reason:roles.size>1?'角色自述存在冲突，保留中性声音编号':'按声音自动分组；目前缺少可交叉验证的角色类型依据，保留编号'};
     });
   }
   function cuesWithSpeakers(session, cues){
@@ -750,5 +793,5 @@
     return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle}</title><style>body{margin:0;background:#f7f8fa;color:#1b2433;font:16px/1.9 system-ui,'Microsoft YaHei',sans-serif}main{max-width:850px;margin:24px auto;background:white;padding:36px 40px;border-radius:12px}h1{font-size:27px}h2{font-size:22px}h3{font-size:18px}p,li,a{overflow-wrap:anywhere}a{color:#2465a8}blockquote{margin:14px 0;padding:8px 16px;border-left:3px solid #9baec1;color:#52677a}hr{border:0;border-top:1px solid #e1e5eb}@media(max-width:600px){main{margin:0;padding:20px;border-radius:0}}</style></head><body><main>${provenance}${markdownToSafeHtml(resultMarkdown(session,selected))}</main></body></html>`;
   }
 
-  return {pageKey,documentBelongsTo,documentSignature,punctuationComplete,punctuationUnits,mergePunctuationUnits,punctuationRepairPrompt,validatePunctuationRepair,fallbackTranscriptLayout,punctuationSchema,cleanCaptionReview,cleanCaptionReviews,readerSourceText,readingTurns,joinSpeechText,sentenceLines,transcriptBatches,validateTranscriptPunctuation,transcriptPunctuationPrompt,formatTranscriptTurns,cleanReaderOutput,cleanDocumentAudit,resultAuditMarkdown,speechOptions,explicitDialogueRole,normalizeFilter,filterKey,filterFingerprint,filterTopicKey,cleanFilterOverrides,cleanFilterAssessments,assessCue,screeningCues,filterSummary,makeFilterReviewBatch,filterReviewPrompt,validateFilterReview,loopEvidence,cleanTextOverrides,qualityLabel,transcriptLine,qualityCounts,auditExport,WRITING_MODES,normalizeWriting,parseWritingTime,selectWritingCues,prepareWriting,writingPrompt,cleanDocument,documentHistory,mergeDocumentHistory,activeDocument,activateDocument,resultMarkdown,resultText,resultHtml,validSpeakerId, cleanSpeakerName, cleanSpeakerNames, cleanSpeakerOverrides, speakerCatalog, cuesWithSpeakers, speakerPrefix,cleanCue,normalizeWhitespace,formatTime,escapeHtml,tsUrl,sortedCues,mergeCues,parseYoutubeJson3,parseBiliJson,parseSrtVtt,extractKeywords,cueIdentity,buildOfflinePeriodSummary,buildPeriodSection,buildLocalMarkdown,buildDocumentMarkdown,markdownToSafeHtml,buildHtmlDocument,makeFilename};
+  return {pageKey,documentBelongsTo,documentSignature,punctuationComplete,punctuationUnits,mergePunctuationUnits,punctuationRepairPrompt,validatePunctuationRepair,fallbackTranscriptLayout,punctuationSchema,cleanCaptionReview,cleanCaptionReviews,readerSourceText,readingTurns,joinSpeechText,sentenceLines,transcriptBatches,validateTranscriptPunctuation,transcriptPunctuationPrompt,formatTranscriptTurns,cleanReaderOutput,cleanDocumentAudit,resultAuditMarkdown,speechOptions,explicitDialogueRole,normalizeFilter,filterKey,filterFingerprint,filterTopicKey,cleanFilterOverrides,cleanFilterAssessments,assessCue,screeningCues,filterSummary,makeFilterReviewBatch,filterReviewPrompt,validateFilterReview,loopEvidence,cleanTextOverrides,qualityLabel,transcriptLine,qualityCounts,auditExport,WRITING_MODES,normalizeWriting,parseWritingTime,selectWritingCues,prepareWriting,writingPrompt,cleanDocument,documentHistory,mergeDocumentHistory,activeDocument,activateDocument,resultMarkdown,resultText,resultHtml,validSpeakerId, cleanSpeakerName, cleanSpeakerNames, cleanSpeakerEvidence, cleanSpeakerCandidates, cleanSpeakerOverrides, speakerCatalog, cleanSpeakerRoles, cleanSpeakerRoleCandidates, cuesWithSpeakers, speakerPrefix,cleanCue,normalizeWhitespace,formatTime,escapeHtml,tsUrl,sortedCues,mergeCues,parseYoutubeJson3,parseBiliJson,parseSrtVtt,extractKeywords,cueIdentity,buildOfflinePeriodSummary,buildPeriodSection,buildLocalMarkdown,buildDocumentMarkdown,markdownToSafeHtml,buildHtmlDocument,makeFilename};
 });
