@@ -1,3 +1,17 @@
+## git-r17 · Sherpa 运行库版本升级与现场验收
+
+- 新截图显示 r16 的隔离策略已生效：Sherpa 子进程以 `0xC0000005` 退出后，Uvicorn 父服务仍在监听且后续 WebSocket 仍可建立；但声学分组 worker 本次服务生命周期内已被禁用。
+- 原工程固定 `sherpa-onnx==1.12.34`。上游记录显示 1.12.39 修复 pyannote diarization 的 offset-by-one 错误，1.13.1 又加入 bounds checks 防止 SIGSEGV；原工程 1.12.34 早于这两项修复。本版固定到 1.13.8。旧于 1.13.1 或无法读取版本时，`/health` 会报告不可用，且不会加载该旧原生库。
+- 这是一项与现场堆栈高度吻合的上游缺陷修复方向，不等于已经在用户 Windows 上复测成功。必须停止服务后运行 `INSTALL_SPEAKER_MODEL.bat`，确认 /health 的 `speaker_diarization.version` 为 1.13.8，再做授权语音测试。
+- Ollama HTTP 500 与 Sherpa 0xC0000005 是独立问题。500 仍需 `CHECK_OLLAMA_ASR.bat` 的短 WAV 测试及 `%LOCALAPPDATA%\\Ollama\\server.log` 对应时段内容，才能区分模型 runner、音频 projector、显存/内存或其他上游故障。
+
+## git-r16 · Sherpa 原生崩溃隔离的验收边界
+
+- Sherpa-ONNX 原生调用现已放入独立子进程；构造测试模拟子进程异常退出后，父服务保持运行并回退完整音频 ASR。此为**故障隔离**，不代表已经修复 Sherpa 本身的 C++ 缺陷或确认用户现场根因。
+- `No speakers found in the audio samples` 是无活动说话人/空分段的结果，应保留原文并标记未归属。静音、极短和低能量窗口会在调用 native worker 前跳过；仍有实际说话声但模型漏检时也不会猜身份。
+- 子进程异常/超时后，声学分组在本次服务运行期间禁用，重启服务后才重新尝试；避免每个窗口重复触发相同 native crash。真实 Windows sherpa 模型与 access violation 复测仍待目标机完成。
+- Ollama HTTP 500 仍需依据 `%LOCALAPPDATA%\Ollama\server.log` 判断 runner、音频 projector、显存或其他原因。VideoKnowledge 负责保留原音、处理水位与有界重试，不会替换模型或宣称修复上游 Ollama。
+
 ## V0.12.0 新版仍待验收与限制
 
 - **ISSUE-001/002 部分缓解，未关闭**：超过阈值的长文使用流式章节、内容指纹与持久化检查点；较短整理仍可使用原100秒非流式请求。检查点已保存但没有交互式章节草稿浏览器、全项目进程故障后的实际恢复验收，存储旧版本检查点也还没有清理策略。
@@ -54,7 +68,7 @@
 | ISSUE-013 | 旧重连的fatal、缓存拒写后在途包误判、推送任务异常无人收集已由故障注入复现/修正；用户本次“服务异常断开”的现场根因仍未确定，需新诊断JSON和日志 |
 | ISSUE-014 | 视频缓存依赖站点响应、Node/Deno和可选ffmpeg，尚未在真实YouTube/B站下载验收；该历史版本不导入cookies；0.10.2仅在单次主动授权后使用YouTube会话，不绕过保护 |
 | ISSUE-015 | 上下文纠词仅常用短语保守处理，没有原音核验；拼音匹配和模型自评不能证明正确 |
-| ISSUE-016 | WebSocket可恢复不代表原生C/CUDA/ONNX崩溃可以在同进程恢复；仅开启故障日志，不无条件重启进程 |
+| ISSUE-016 | git-r16 已将 Sherpa-ONNX 原生声学分组隔离到子进程，子进程崩溃/超时后安全降级；真实 Windows 原生崩溃仍待现场验收。其他未隔离原生组件仍不能依赖 Python 异常捕获保护 |
 
 新功能与边界参见UPGRADE_V080.md，执行证据参见../qa/V080_TEST_REPORT.md。
 

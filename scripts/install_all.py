@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+from importlib.metadata import PackageNotFoundError, version as distribution_version
 import os
 from pathlib import Path
 import queue
@@ -39,7 +40,7 @@ def plan(profile: str, asr_model: str, asr_profile: str = 'keep') -> list[dict]:
         'runtime': '本地服务 Python 依赖 / WebSocket',
         'review': '上下文同音词校验组件',
         'video': '视频下载组件及 FFmpeg / Deno 检查',
-        'speaker': '说话人分组组件、模型与静音加载检查',
+        'speaker': 'Sherpa-ONNX 1.13.8 安全运行库、说话人模型与隔离加载检查',
         'asr': (f'ASR 引擎安装与加载检查：{asr_profile}（Ollama模型缺失则自动下载、不安装PyTorch；原生Qwen仍需独立环境）' if asr_profile != 'keep' else f'检查当前ASR配置；旧配置预下载 Whisper {asr_model}'),
         'ollama_asr': 'Ollama 语音模型 Qwen3-ASR（已安装则跳过，缺少才拉取；不切换现有引擎）',
         'text': f'本地文字模型 {MODEL_NAMES["text"]}',
@@ -338,8 +339,16 @@ class Installer:
         if not self.runtime_ok:
             raise InstallFailure('本地运行依赖未完成；没有在残缺环境中安装说话人模型。', code='DEPENDENCY', retryable=False)
         self.pip('-r', 'server/requirements-speaker.txt', binary=True)
+        try:
+            sherpa_version = distribution_version('sherpa-onnx')
+        except PackageNotFoundError as exc:
+            raise InstallFailure('Sherpa-ONNX 安装后仍无法读取包版本。', code='SHERPA_VERSION', retryable=False) from exc
+        if sherpa_version != '1.13.8':
+            raise InstallFailure(f'期望 sherpa-onnx 1.13.8，实际为 {sherpa_version}；拒绝运行旧原生库。',
+                                 code='SHERPA_VERSION', retryable=False)
         self.command([sys.executable, 'scripts/install_speaker_models.py'], timeout=3600, attempts=3)
-        return {'model_load_and_silence_check': True, 'speaker_accuracy_tested': False}
+        return {'sherpa_onnx_version': sherpa_version,
+                'model_load_in_isolated_process': True, 'speaker_accuracy_tested': False}
 
     def effective_asr_selection(self) -> tuple[str, str | None]:
         selected = self.args.asr_profile

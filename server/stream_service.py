@@ -44,6 +44,7 @@ class StreamManager:
     def snapshot(self):
         # No audio, transcript, URL, voice vector, token or API key in this data.
         return {'workers': {k: dict(v) for k, v in self.worker_state.items()},
+                'speaker_backend': self.speakers.snapshot(),
                 'active_connections': len(self.connections),
                 'last_disconnect': self.last_disconnect,
                 'stopping': self.stopping}
@@ -77,8 +78,10 @@ class StreamManager:
             task.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
         self.tasks.clear()
-        # to_thread cancellation cannot forcibly terminate a native model call.
-        # That thread only owns job data; no processed cursor is advanced here.
+        # A to_thread call cannot be cancelled directly. The optional sherpa
+        # native library therefore runs in its own child process; terminate it
+        # on shutdown so a stuck/crashed diarizer cannot outlive this service.
+        self.speakers.close()
 
     def transcribe_and_label(self, job):
         return self.speakers.transcribe_and_annotate(job, self.engine)
@@ -191,7 +194,7 @@ class StreamManager:
             await close(code, cause)
 
         try:
-            await send({'type': 'ready', 'protocol': 5, 'version': '0.8.0'})
+            await send({'type': 'ready', 'protocol': 5, 'version': '0.12.1'})
             while sid is None:
                 event = await asyncio.wait_for(ws.receive(), 12)
                 if event['type'] == 'websocket.disconnect':

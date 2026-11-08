@@ -52,12 +52,20 @@ def main():
 
 def check():
     sys.path.insert(0, str(ROOT))
-    from server.speaker import SherpaBackend
-    import numpy as np
-    model = SherpaBackend()
-    turns, _ = model.analyze(np.zeros(16000 * 10, dtype=np.float32))
-    print('[OK] Optional models loaded and a silence inference completed.')
-    print('[NOTE] This is NOT a speech accuracy/latency benchmark. Restart ASR, enable speaker mode in settings.')
+    from server.speaker import IsolatedSherpaBackend, availability
+    runtime = availability()
+    if not runtime['available']:
+        raise RuntimeError(runtime['message'])
+    worker = IsolatedSherpaBackend(startup_timeout=120, analyze_timeout=120)
+    try:
+        # Load the native library and both ONNX models in the same isolated
+        # process used by the service. A native fault cannot kill the installer.
+        worker.start()
+    finally:
+        worker.close()
+    print('[OK] Optional models loaded in isolated process; runtime:',
+          runtime.get('version', 'unknown'))
+    print('[NOTE] This checks loading only, NOT speaker accuracy/latency. Restart ASR after installation.')
     return 0
 
 if __name__ == '__main__':

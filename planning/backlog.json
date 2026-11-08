@@ -684,6 +684,36 @@
       ],
       "deliverable": "Ollama ASR适配器、真实WAV发送、无词对齐保护、配置与安装器、测试和交付文档",
       "notes": "代码与构造测试完成；目标Windows真实音频/模型、显存及准确率待验收，不关闭此任务"
+    },
+    {
+      "id": "VK-053",
+      "priority": "P0",
+      "title": "隔离 Sherpa 原生说话人识别并保护 ASR 服务",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-045"
+      ],
+      "acceptance": [
+        "AC-053",
+        "AC-054",
+        "AC-055"
+      ],
+      "deliverable": "Sherpa 独立子进程、空音频/空说话人防护、崩溃/超时降级、服务生命周期清理、Ollama 500 工作循环回归与升级说明",
+      "notes": "模拟子进程崩溃、空结果和 HTTP 500 构造测试已通过；真实 Windows sherpa-onnx 原生模型、目标机0xC0000005及真实 Ollama runner 仍待现场验收，不宣称关闭原生运行时问题。"
+    },
+    {
+      "id": "VK-054",
+      "priority": "P0",
+      "title": "升级 Sherpa-ONNX 并修复 diarization 原生边界访问风险",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-053"
+      ],
+      "acceptance": [
+        "AC-056"
+      ],
+      "deliverable": "Sherpa-ONNX 1.13.8 依赖锁定、运行时版本门禁、隔离安装自检、升级说明与回归测试",
+      "notes": "上游 1.13.1 已加入 speaker diarization bounds checks；本版固定 1.13.8。代码/构造测试完成，目标 Windows 原生模型与真实音频仍待用户现场验收。"
     }
   ]
 }

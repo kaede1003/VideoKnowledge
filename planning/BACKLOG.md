@@ -2,7 +2,7 @@
 
 > 本文件由 `planning/backlog.json` 生成；编辑JSON后运行 `python scripts/render_planning.py`。
 
-当前版本扩展0.11.0/服务0.11.0/安装器0.8.2。新增任务in_progress表示代码/构造测试已交付、真实环境仍待验收；done需要对应证据。
+当前版本扩展0.12.1/服务0.12.1/安装器0.8.4。新增任务in_progress表示代码/构造测试已交付、真实环境仍待验收；done需要对应证据。
 
 | ID | 优先级 | 状态 | 任务 | 依赖 |
 |---|---|---|---|---|
@@ -51,6 +51,8 @@
 | VK-043 | P1 | in_progress | YouTube单次会话授权重试 | VK-001 |
 | VK-044 | P0 | in_progress | Qwen3-ASR可选接入、隔离安装与真实音频验收 | VK-001 |
 | VK-045 | P0 | in_progress | Ollama Qwen3-ASR 复用已安装模型并保留回退 | VK-044 |
+| VK-053 | P0 | in_progress | 隔离 Sherpa 原生说话人识别并保护 ASR 服务 | VK-045 |
+| VK-054 | P0 | in_progress | 升级 Sherpa-ONNX 并修复 diarization 原生边界访问风险 | VK-053 |
 
 ## 逐项交付与验收
 
@@ -503,3 +505,23 @@
 验收：AC-052。
 
 约束：代码与构造测试完成；目标Windows真实音频/模型、显存及准确率待验收，不关闭此任务。
+
+### VK-053 · 隔离 Sherpa 原生说话人识别并保护 ASR 服务
+
+优先级：P0；状态：in_progress；依赖：VK-045。
+
+交付物：Sherpa 独立子进程、空音频/空说话人防护、崩溃/超时降级、服务生命周期清理、Ollama 500 工作循环回归与升级说明。
+
+验收：AC-053, AC-054, AC-055。
+
+约束：模拟子进程崩溃、空结果和 HTTP 500 构造测试已通过；真实 Windows sherpa-onnx 原生模型、目标机0xC0000005及真实 Ollama runner 仍待现场验收，不宣称关闭原生运行时问题。。
+
+### VK-054 · 升级 Sherpa-ONNX 并修复 diarization 原生边界访问风险
+
+优先级：P0；状态：in_progress；依赖：VK-053。
+
+交付物：Sherpa-ONNX 1.13.8 依赖锁定、运行时版本门禁、隔离安装自检、升级说明与回归测试。
+
+验收：AC-056。
+
+约束：上游 1.13.1 已加入 speaker diarization bounds checks；本版固定 1.13.8。代码/构造测试完成，目标 Windows 原生模型与真实音频仍待用户现场验收。。

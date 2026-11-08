@@ -1,10 +1,12 @@
 # VideoKnowledge V0.12.1 · 旁白 / 系统播报 / 剧情角色自动分类
 
+> **git-r17 修复包**：在 git-r16 子进程隔离基础上，将 Sherpa-ONNX 从 1.12.34 升级并固定到 1.13.8。上游 1.13.1 起已加入 speaker diarization 边界检查，防止 SIGSEGV。旧版本会被运行时门禁拦截，安装自检也在隔离进程运行。Ollama HTTP 500 仍需独立诊断。详见 [git-r17 升级说明](docs/UPGRADE_GIT_R17_SPEAKER_BOUNDS_FIX.md)。
+
 在原有 **音频声纹分组** 的基础上，新增独立的**声音角色类型推测**：本地 Ollama 文字模型综合不同声音的多条台词、可验证的字幕以及发言顺序，给出 `剧情旁白（推测）`、`系统播报（推测）`、`剧情角色（推测）` 等标签。没有足够证据仍保留 `说话人N`，不会从高低音或片中提到的人名直接推定身份。**角色类型不等于真实姓名，声纹聚类仍由本地 sherpa-onnx 完成。**
 
 新转写累计后自动、有限频率地触发角色分类；展开“自动识别声音与剧情角色”也会检查。不需要人工填写名字。姓名仍只使用直接自报与稳定同步字幕的证据；旁白介绍人物仅作为线索。保留原笔记、ASR 模型选择、音频缓存、说话人编号与已有生成文档。
 
-**版本：扩展 0.12.1 / 本地服务 0.12.0 / 安装器 0.8.4 / VKN5 协议 5。** 只需重新加载原 Edge 扩展，不必重装模型或服务。详见 [升级说明](docs/UPGRADE_V0121_ROLES.md) 和 [测试报告](qa/V0121_ROLES_TEST_REPORT.md)。
+**版本：扩展 0.12.1 / 本地服务 0.12.1 / 安装器 0.8.4 / VKN5 协议 5。** git-r17 只更新本地 Sherpa 运行库与安装自检：请停止服务、覆盖源码后运行 `INSTALL_SPEAKER_MODEL.bat`，再用 `CHECK_SPEAKER_RUNTIME.bat` 确认 1.13.8；不需要重新安装/重载 Edge 扩展，也不需要删除或重装已有说话人模型。详见 [角色分类说明](docs/UPGRADE_V0121_ROLES.md)、[git-r17 升级说明](docs/UPGRADE_GIT_R17_SPEAKER_BOUNDS_FIX.md) 和 [测试报告](qa/GIT_R17_SPEAKER_BOUNDS_TEST_REPORT.md)。
 
 ---
 

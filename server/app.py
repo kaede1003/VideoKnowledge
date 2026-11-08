@@ -65,7 +65,7 @@ app.add_middleware(CORSMiddleware,
 
 @app.get('/health')
 async def health():
-    return {'ok':True,'service':'vkn-asr','version':'0.12.0','protocol':5,
+    return {'ok':True,'service':'vkn-asr','version':'0.12.1','protocol':5,
             'process_id':os.getpid(),'boot_id':BOOT_ID,'uptime_seconds':round(time.monotonic()-STARTED_AT,1),
             'runtime':MANAGER.snapshot() if MANAGER else {'stopping':True},
             'asr_backend':ENGINE.snapshot() if hasattr(ENGINE,'snapshot') else {'backend':'faster-whisper','profile':getattr(ENGINE,'profile_name','legacy')},

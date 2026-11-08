@@ -58,6 +58,10 @@
 | AC-050 | YouTube单次会话授权重试 | automated_and_manual | target_pending |
 | AC-051 | Qwen3-ASR原音处理与不破坏旧环境 | automated_and_manual | target_pending |
 | AC-052 | Ollama ASR安装与真实声音验收 | automated_and_manual | target_pending |
+| AC-053 | Sherpa 原生 worker 崩溃隔离与安全降级 | automated | fixture_covered |
+| AC-054 | Windows Sherpa 原生访问冲突现场验收 | manual | target_pending |
+| AC-055 | Ollama HTTP 500 时 ASR worker 与音频缓存恢复 | automated | fixture_covered |
+| AC-056 | Sherpa-ONNX 运行库升级与版本门禁 | automated_and_manual | target_pending |
 
 ## 具体步骤
 
@@ -578,5 +582,45 @@
 操作：停止服务→用INSTALL_ALL选择ollama17→检查无PyTorch安装、精确模型名、静音推理和配置→启动→记录真实音频→中途断网/模型不可用→核对原音、时间、语种、翻译状态、未处理缓存与进度→恢复Whisper。
 
 预期：真实模型可转写，窗口时间不伪造词时间戳，翻译与原文分离，失败不删音频/不推进游标；准确率和RTF需实测，原有数据无变化。
+
+当前状态：`target_pending`。
+
+### AC-053 · Sherpa 原生 worker 崩溃隔离与安全降级
+
+前置：Python multiprocessing spawn 可用；使用构造子进程，不安装真实 sherpa 模型。
+
+操作：模拟 worker 正常空结果、初始化错误、推理退出/EOF、推理超时；从 asyncio 工作线程调用；检查后续窗口不重复启动崩溃 worker。
+
+预期：子进程故障不终止 ASR/FastAPI 父进程；完整音频回退原 ASR；无虚构 speakerId；本次服务生命周期内停止重复启动。
+
+当前状态：`fixture_covered`。
+
+### AC-054 · Windows Sherpa 原生访问冲突现场验收
+
+前置：目标 Windows、sherpa-onnx 1.13.8、说话人模型文件齐备、可授权的静音/单人/多人音频。
+
+操作：停止服务→运行 INSTALL_SPEAKER_MODEL.bat 更新依赖→确认 /health 的 speaker_diarization.version=1.13.8 且 available=true→运行静音、短语音、无说话人、单人和多人样本；如子进程异常，确认父服务与 /health 仍可用。
+
+预期：旧于 1.13.1 的 Sherpa 不会被加载；1.13.8 在目标 Windows 上不再复现该 access violation；无说话人时保留原文且不猜身份；准确率单独记录。
+
+当前状态：`target_pending`。
+
+### AC-055 · Ollama HTTP 500 时 ASR worker 与音频缓存恢复
+
+前置：本地 StreamStore 与构造 HTTP 500 ASR 引擎。
+
+操作：向服务写入完整音频包；连续模拟两次 Ollama HTTP 500；检查 ASR worker 状态、SQLite音频包、processed/received、retry_at；显式 retry 后确认水位未被伪推进。
+
+预期：ASR worker 不退出；音频包与笔记不删除；processed 不前进；连续失败按既有15分钟冷却；不会静默切换识别引擎。
+
+当前状态：`fixture_covered`。
+
+### AC-056 · Sherpa-ONNX 运行库升级与版本门禁
+
+前置：Python 3.11/3.12 x64；项目 .venv；安装器与可选说话人模型。
+
+操作：运行 INSTALL_ALL.bat -Profile speaker；核对安装报告 sherpa_onnx_version；检查 /health 与 CHECK_SPEAKER_RUNTIME.bat；在 Windows 运行授权短音频/静音/无说话人测试。
+
+预期：安装器只安装固定 sherpa-onnx 1.13.8；1.13.1 以下或未知版本被安全禁用；模型加载在隔离进程；原有音频/笔记/模型数据保留；目标机 access violation 另行记录。
 
 当前状态：`target_pending`。

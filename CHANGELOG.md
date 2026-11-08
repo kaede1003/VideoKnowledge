@@ -1,3 +1,21 @@
+## 本地服务 0.12.1 · git-r17 · Sherpa-ONNX 版本缺陷修复
+
+- 根据 Windows 现场日志与上游变更记录，确认 git-r16 仅隔离了原生崩溃，没有修复底层 Sherpa 运行库。原工程固定 `sherpa-onnx==1.12.34`；上游 1.12.39 修复 pyannote 分离的 offset-by-one，1.13.1 又加入说话人分离边界检查以防止 SIGSEGV。
+- 将可选说话人运行库固定升级到 `1.13.8`；该版本提供 Python 3.11/Windows x64 预编译 wheel。运行时低于 1.13.1 或无法确认版本时，禁用声学分组并明确提示升级，不再加载旧原生库。
+- 安装器版本核验改为严格检查 1.13.8；模型加载 smoke test 改在隔离子进程执行，原生故障不会杀死安装器。
+- 新增 `CHECK_SPEAKER_RUNTIME.bat`，/health 返回 Sherpa 版本、安全门槛和可用性；新增版本门禁及 worker 启动测试。
+- Ollama HTTP 500 与 Sherpa 原生访问冲突仍是两个独立故障；本版不声称修复 Ollama runner。真实 Windows 1.13.8 运行和真实 Ollama server.log 仍需现场验收。
+
+## 本地服务 0.12.1 · git-r16 · Sherpa 原生崩溃隔离与 ASR 容错
+
+- 将 sherpa-onnx 声学分段与 embedding 推理移入持久独立子进程；Windows 原生访问冲突/进程退出不再直接终止 FastAPI/ASR 父进程。
+- 对静音、极短、非有限数值及无说话人输出增加保护；空 diarization 作为正常未归属结果，不调用空 embedding。
+- 子进程异常退出、初始化失败或推理超时后关闭本轮声学分组，直到本地服务重启；完整音频继续走已选 ASR，不猜说话人。
+- 服务停止时清理隔离 worker；`/health` 暴露 speaker worker 生命周期状态；同步更新 HTTP 与 WebSocket 服务版本。
+- 新增原生子进程崩溃模拟、空结果、线程调用、ASR fallback 与 Ollama HTTP 500 缓存/worker 生命周期测试。
+- Ollama 内部 HTTP 500 仍属于上游运行时故障，本版不声称修复 Ollama runner；验证服务不崩溃、原音保留及既有冷却策略。
+- 扩展保持0.12.1、服务升至0.12.1、安装器0.8.4与协议5不变；真实 Windows sherpa/Ollama模型和声纹准确率仍待目标机验收。
+
 ## V0.12.1 · Automatic narrative role labels for acoustic speaker groups
 
 - 区分声纹分组（谁发出声音）与剧情类型（旁白、系统播报、剧情角色、主持人、嘉宾）。

@@ -1,3 +1,19 @@
+# 当前状态 · V0.12.1 / git-r17
+
+针对用户在 git-r16 上复测的 Windows 日志，确认父服务保持运行，但 sherpa 子进程仍以 `0xC0000005` 退出。上游 sherpa-onnx changelog 显示 1.13.1 加入 speaker diarization bounds checks 以防止 SIGSEGV；此前项目锁定 1.12.34，存在直接相关的原生边界检查缺口。本版将运行库固定到 1.13.8，增加旧版本启动门禁，并将安装器模型加载检查放入隔离进程。目标 Windows 尚未安装/验证该新版本，不能宣称现场崩溃已最终关闭。
+
+Ollama HTTP 500 仍为独立上游故障。当前没有收到对应时段的 Ollama `server.log`，不能仅凭截图判断模型 runner、音频 projector、显存或其他根因；音频保留与冷却策略继续生效。
+
+# 当前状态 · 本地服务 V0.12.1 / git-r16
+
+新增 Sherpa 原生推理隔离：声学分段与 embedding 模型在独立 spawn 子进程中加载；父服务通过 IPC 接收分段结果。子进程发生 Windows access violation、异常退出或超时，父服务可检测到 EOF/退出状态并安全关闭该 worker，本次服务运行期间停止再次启动声学分组，原始音频继续交给既有 ASR 路径。静音、极短音频和 sherpa 空结果按无可靠说话人处理，不猜身份。
+
+Ollama HTTP 500 仍是 Ollama 模型运行时返回的服务端错误，不可能仅靠客户端代码修复 runner；当前路径继续保留音频与 SQLite 处理水位，连续失败按既有策略进入15分钟冷却。新增构造测试覆盖 worker 崩溃隔离、空结果、ASR fallback、HTTP 500 时 worker 存活和缓存不推进。
+
+**工程/构造测试已完成；目标 Windows 上真实 sherpa-onnx 模型、原生0xC0000005现场及真实 Ollama Qwen3-ASR 尚未验证。** 详见 [git-r16升级说明](UPGRADE_GIT_R16_SPEAKER_ISOLATION.md) 和 [测试报告](../qa/GIT_R16_SPEAKER_ISOLATION_TEST_REPORT.md)。下文为历史状态。
+
+---
+
 # 当前状态 · V0.12.0 / git-r14
 
 长视频自动选择分层、流式、可恢复的章节生成流程（超过约4300估算tokens时进入）。单次输入/输出有预算，阶段结果按来源记录/模型/模式/视频指纹持久化，失败或截断不将本轮半成品标记为完整文档；下一次同源同配置自动尝试续写。小任务仍可能采用历史非流式路径。该机制的“来源覆盖”不等于逐句语义完备或听写准确。

@@ -1,11 +1,13 @@
 # 可选说话人模块：官方依据
 
-核对日期：2026-11-06。以下为第三方工具说明，不是本软件准确率证明。
+核对日期：2026-11-08。以下为第三方工具说明，不是本软件准确率证明。
 
 - sherpa-onnx 本地说话人分离官方说明：https://k2-fsa.github.io/sherpa/onnx/speaker-diarization/index.html
 - 官方模型与用法：https://k2-fsa.github.io/sherpa/onnx/speaker-diarization/models.html
-- 对应固定运行库版本示例：https://github.com/k2-fsa/sherpa-onnx/blob/v1.12.34/python-api-examples/offline-speaker-diarization.py
-- 固定安装版本与发布包：https://pypi.org/project/sherpa-onnx/1.12.34/
+- 当前固定运行库版本示例：https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/python-api-examples/offline-speaker-diarization.py
+- 固定安装版本与发布包：https://pypi.org/project/sherpa-onnx/1.13.8/
+- 上游版本变更记录：https://github.com/k2-fsa/sherpa-onnx/blob/master/CHANGELOG.md（1.12.39 修复 pyannote offset-by-one；1.13.1 增加 diarization bounds checks 防止 SIGSEGV）。
+- 版本安全门槛：1.13.1；官方更新记录注明该版本加入 speaker diarization bounds checks 以防止 SIGSEGV。工程固定使用 1.13.8，避免继续运行旧版 1.12.34。
 - 分段模型：sherpa-onnx-pyannote-segmentation-3-0，运行时使用 model.onnx。
 - 声音特征模型：3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx，官方示例选择；对其他语言未完成准确度验证。
 

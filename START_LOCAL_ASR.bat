@@ -38,7 +38,7 @@ REM A previous copy of the local service must not occupy the same port.
 if errorlevel 1 goto port_busy
 
 echo.
-echo [INFO] VideoKnowledge ASR and LoRA local service v0.11.1
+echo [INFO] VideoKnowledge ASR and LoRA local service v0.12.1
 echo [INFO] Health URL: http://127.0.0.1:8765/health
 "%PYEXE%" "scripts\show_asr_profile.py"
 if errorlevel 1 goto failure

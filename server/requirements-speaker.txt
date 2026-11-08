@@ -1,2 +1,4 @@
 # Optional CPU-only speaker diarization, isolated from Whisper and Ollama.
-sherpa-onnx==1.12.34
+# 1.13.1 introduced bounds checks for speaker diarization; pin the tested
+# Windows/Python wheels from 1.13.8 rather than the older 1.12.34 runtime.
+sherpa-onnx==1.13.8
