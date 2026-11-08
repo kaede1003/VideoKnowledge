@@ -7,6 +7,12 @@ test('longform chunks preserve every cue id and respect input tokens including o
  assert.ok(blocks.every(b=>b.tokens<=600), 'source token bounds enforced');
  assert.equal(L.coverage(cues.map(x=>x.id),blocks).covered,30);
 });
+test('longform checkpoint fingerprint changes when source language or translation status changes',()=>{
+ const base={id:'cue-1',time:0,text:'Hola mundo',original:'Hola mundo',language:'es',translationStatus:'needs_review'};
+ const fp=L.fingerprint([base],{mode:'transcript'},'model');
+ assert.notEqual(fp,L.fingerprint([{...base,language:'zh'}],{mode:'transcript'},'model'));
+ assert.notEqual(fp,L.fingerprint([{...base,translationStatus:'done'}],{mode:'transcript'},'model'));
+});
 test('continuation and fingerprint are source scoped, no duplicated overlap',()=>{
  assert.equal(L.joinContinuation('信息A——连续完整段落','完整段落和下一句'),'信息A——连续完整段落和下一句');
  const cues=[{id:'c1',time:0,text:'开头'}],o={mode:'knowledge'};

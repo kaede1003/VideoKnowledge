@@ -53,6 +53,7 @@
 | VK-045 | P0 | in_progress | Ollama Qwen3-ASR 复用已安装模型并保留回退 | VK-044 |
 | VK-053 | P0 | in_progress | 隔离 Sherpa 原生说话人识别并保护 ASR 服务 | VK-045 |
 | VK-054 | P0 | in_progress | 升级 Sherpa-ONNX 并修复 diarization 原生边界访问风险 | VK-053 |
+| VK-055 | P1 | done | 修复文字稿模式外语内容未翻译为中文 | VK-012 |
 
 ## 逐项交付与验收
 
@@ -525,3 +526,13 @@
 验收：AC-056。
 
 约束：上游 1.13.1 已加入 speaker diarization bounds checks；本版固定 1.13.8。代码/构造测试完成，目标 Windows 原生模型与真实音频仍待用户现场验收。。
+
+### VK-055 · 修复文字稿模式外语内容未翻译为中文
+
+优先级：P1；状态：done；依赖：VK-012。
+
+交付物：短文/长文文字稿独立翻译阶段、来源ID校验、失败保护及回归测试。
+
+验收：AC-057。
+
+约束：代码与模拟端到端测试完成；真实 Ollama/Qwen 翻译准确度、专名和语义保真仍按 AC-011 目标机/双语人工验收。。

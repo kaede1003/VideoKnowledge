@@ -67,9 +67,29 @@ async function vknRunLongform(cues,meta,options={},cfg){
  };
  try{
   if(mode==='transcript'){
-    const turns=C.readingTurns(selected.cues),units=C.punctuationUnits(turns),batches=C.transcriptBatches(units);const all=[];
+    const turns=C.readingTurns(selected.cues),sourceUnits=C.punctuationUnits(turns),foreignUnits=sourceUnits.filter(C.transcriptNeedsTranslation);
+    const translationBatches=C.transcriptBatches(foreignUnits,1000),translatedById=new Map();
+    for(let i=0;i<translationBatches.length;i++){
+      await stage('翻译外语文字稿',i,translationBatches.length);
+      const batch=translationBatches[i],tag='translation-'+i;let checked=null,processed=checkpoint.units[tag];
+      if(processed?.turns){
+        try{checked=C.validateTranscriptTranslation(JSON.stringify({turns:processed.turns}),batch);}catch{checked=null;}
+      }
+      if(!checked){
+        const p=C.transcriptTranslationPrompt(batch);
+        const response=await vknLongformStream(cfg,p.system,p.user,{...options,maxTokens:2200});
+        if(!response.complete||response.finishReason==='length')throw Error('AI_TRANSLATION_INCOMPLETE：外语文字稿翻译未完整结束；原始听写与旧文稿保留，请重试。');
+        checked=C.validateTranscriptTranslation(response.text,batch);
+        processed={turns:checked.turns.map(t=>({id:t.id,text:t.text})),ids:batch.map(t=>t.id)};
+        checkpoint.units[tag]=processed;await persist();
+      }
+      for(const row of checked.turns)translatedById.set(row.id,row.text);
+    }
+    const translatedUnits=sourceUnits.map(unit=>translatedById.has(unit.id)?{...unit,text:translatedById.get(unit.id),translated:true}:unit);
+    const outputTurns=translatedById.size?C.mergePunctuationUnits(turns,translatedUnits):turns;
+    const units=C.punctuationUnits(outputTurns),batches=C.transcriptBatches(units),all=[];
     for(let i=0;i<batches.length;i++){
-      await stage('逐段断句与发言合并',i,batches.length);
+      await stage('中文文字稿断句与发言合并',i,batches.length);
       const tag='punct-'+i;let processed=checkpoint.units[tag];
       if(!processed){const batch=batches[i],p=C.transcriptPunctuationPrompt(batch);let response,checked;
         try{response=await build(tag,p,1250);checked=C.validateTranscriptPunctuation(response,batch);}
@@ -79,9 +99,10 @@ async function vknRunLongform(cues,meta,options={},cfg){
         checkpoint.units[tag]=processed;await persist();
       }all.push(...processed.turns);
     }
-    const md=C.formatTranscriptTurns(C.mergePunctuationUnits(turns,all));if(!md.trim())throw Error('AI_EMPTY_BODY：文字稿为空。');
+    const md=C.formatTranscriptTurns(C.mergePunctuationUnits(outputTurns,all));if(!md.trim())throw Error('AI_EMPTY_BODY：文字稿为空。');
+    if(translatedById.size)checkpoint.translationSummary='已将 '+translatedById.size+' 个外语文字片段逐条翻译为简体中文；原始听写仍保留在来源记录中。';
     checkpoint.phase='done';checkpoint.completed=true;await persist();
-    return {markdown:md,audit:{version:1,notes:[],corrections:'',turns:turns.map(t=>({id:t.id,label:t.label,start:t.start,end:t.end,cueIds:t.cueIds}))},blocks:batches.length,truncated:false,mode,writing:selected.options,cueCount:selected.cues.length,total:selected.total,start:selected.from,end:selected.to,chars:md.length,model:cfg.model,reviewCount:C.qualityCounts(selected.cues).review,manualCount:C.qualityCounts(selected.cues).manual,coverage:{covered:selected.cues.length,total:selected.cues.length}};
+    return {markdown:md,audit:{version:1,notes:checkpoint.translationSummary?[checkpoint.translationSummary]:[],corrections:'',turns:turns.map(t=>({id:t.id,label:t.label,start:t.start,end:t.end,cueIds:t.cueIds}))},blocks:batches.length+translationBatches.length,truncated:false,mode,writing:selected.options,cueCount:selected.cues.length,total:selected.total,start:selected.from,end:selected.to,chars:md.length,model:cfg.model,reviewCount:C.qualityCounts(selected.cues).review,manualCount:C.qualityCounts(selected.cues).manual,coverage:{covered:selected.cues.length,total:selected.cues.length}};
   }
   const input=L.chunks(selected.cues,C.transcriptLine,900);const evidences=[];
   if(mode==='knowledge'){

@@ -1,12 +1,12 @@
 /* Durable, bounded long-form writing plan. Sources are not modified or filtered. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.VknLongform=api;})(globalThis,function(){
  'use strict';
- const VERSION=1, INPUT_BUDGET=1550, MAP_OUTPUT=600, BODY_OUTPUT=1300;
+ const VERSION=2, INPUT_BUDGET=1550, MAP_OUTPUT=600, BODY_OUTPUT=1300;
  function estimateTokens(value){const s=String(value||'');let cjk=0,others=0;for(const ch of s){if(/[\u2e80-\u9fff\uf900-\ufaff]/.test(ch))cjk++;else others++;}return Math.ceil(cjk*1.45+others/2.8)+8;}
  function hash(value){let a=2166136261,b=0x9e3779b9;for(let i=0;i<value.length;i++){const k=value.charCodeAt(i);a=Math.imul(a^k,16777619);b=Math.imul(b^(k+i),2246822519);}return (a>>>0).toString(16).padStart(8,'0')+(b>>>0).toString(16).padStart(8,'0');}
  function fingerprint(cues,options,model,kind='longform'){
   let data=JSON.stringify([VERSION,kind,options,model,cues.length]);
-  for(const c of cues)data+='|'+JSON.stringify([c.id||'',c.time,c.end??'',c.speakerId||'',c.text,c.original||'',c.translation||'',c.manuallyEdited||false,c.contextText||'',c.captionReview?.text||'']);
+  for(const c of cues)data+='|'+JSON.stringify([c.id||'',c.time,c.end??'',c.speakerId||'',c.text,c.original||'',c.translation||'',c.language||'',c.translationStatus||'',c.needsReview||false,c.manuallyEdited||false,c.manualText||'',c.contextText||'',c.captionReview?.text||'']);
   return hash(data)+'-'+cues.length+'-'+data.length;
  }
  function safeParts(line,budget){

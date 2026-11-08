@@ -714,6 +714,20 @@
       ],
       "deliverable": "Sherpa-ONNX 1.13.8 依赖锁定、运行时版本门禁、隔离安装自检、升级说明与回归测试",
       "notes": "上游 1.13.1 已加入 speaker diarization bounds checks；本版固定 1.13.8。代码/构造测试完成，目标 Windows 原生模型与真实音频仍待用户现场验收。"
+    },
+    {
+      "id": "VK-055",
+      "priority": "P1",
+      "title": "修复文字稿模式外语内容未翻译为中文",
+      "status": "done",
+      "depends_on": [
+        "VK-012"
+      ],
+      "acceptance": [
+        "AC-057"
+      ],
+      "deliverable": "短文/长文文字稿独立翻译阶段、来源ID校验、失败保护及回归测试",
+      "notes": "代码与模拟端到端测试完成；真实 Ollama/Qwen 翻译准确度、专名和语义保真仍按 AC-011 目标机/双语人工验收。"
     }
   ]
 }

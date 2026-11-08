@@ -62,6 +62,7 @@
 | AC-054 | Windows Sherpa 原生访问冲突现场验收 | manual | target_pending |
 | AC-055 | Ollama HTTP 500 时 ASR worker 与音频缓存恢复 | automated | fixture_covered |
 | AC-056 | Sherpa-ONNX 运行库升级与版本门禁 | automated_and_manual | target_pending |
+| AC-057 | 外语文字稿先翻译为简体中文再排版 | automated | fixture_covered |
 
 ## 具体步骤
 
@@ -624,3 +625,13 @@
 预期：安装器只安装固定 sherpa-onnx 1.13.8；1.13.1 以下或未知版本被安全禁用；模型加载在隔离进程；原有音频/笔记/模型数据保留；目标机 access violation 另行记录。
 
 当前状态：`target_pending`。
+
+### AC-057 · 外语文字稿先翻译为简体中文再排版
+
+前置：合成西班牙语 ASR 片段，包含正常/待核对/已完成译文及多说话人记录。
+
+操作：分别走短文和长文文字稿路径；模拟逐条中文翻译、缺失ID、原文未翻译、数字改动；检查最终正文、说话人顺序、审计说明及原始记录。
+
+预期：外语发言先翻译成简体中文后再断句；ID/说话人/顺序保持；已可信中文译文不重复翻译；无效翻译拒绝发布且原始记录/旧文稿保留。
+
+当前状态：`fixture_covered`。

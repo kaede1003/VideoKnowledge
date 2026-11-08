@@ -1,3 +1,5 @@
+> git-r18补充：文字稿模式（短文和长文）现在有独立外语→简体中文翻译阶段，再进入标点/断句。按轮次/片段保留来源ID与说话人，可信的ASR译文可复用，待核对译文重新翻译；翻译校验失败时不发布外语原文冒充中文。原始ASR和历史文稿不覆盖。详见 `UPGRADE_GIT_R18_TRANSCRIPT_TRANSLATION.md`。
+
 > git-r17补充：Sherpa-ONNX 运行库固定为 1.13.8（最低安全门槛1.13.1）；旧版本在 `/health` 被标记不可用，避免加载已知缺少 speaker diarization bounds checks 的旧原生库。安装器加载检查同样在隔离子进程完成。Ollama HTTP 500 仍独立待查。详见 `UPGRADE_GIT_R17_SPEAKER_BOUNDS_FIX.md`。\n\n> git-r16补充：Ollama/Whisper ASR 主进程不再直接执行 sherpa-onnx 原生说话人分段。`SpeakerAnnotator` 将 PCM 交给 `IsolatedSherpaBackend` 的独立 spawn 子进程；父进程只接收 IPC 结果。子进程崩溃/超时后本轮服务禁用声学分组并回退完整音频，不推进失败任务的持久水位。静音和空说话人结果正常返回空分组。详见 `UPGRADE_GIT_R16_SPEAKER_ISOLATION.md`。
 
 > V0.11.1补充：`server/asr_profiles.py` 按本地profile选择 `StreamingWhisperEngine`、`QwenEngine`（独立Transformers worker）或 `OllamaASREngine`（本机HTTP）。新 `server/ollama_asr.py` 只编码非重叠owner PCM窗口，并经本机Ollama识别；`server/asr_settings.py`提供下次启动配置，失败不删除缓存/切换运行引擎。见 `UPGRADE_V0111_OLLAMA_ASR.md`。下述某些主干仍是历史0.7.2架构描述。

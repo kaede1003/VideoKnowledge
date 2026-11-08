@@ -192,7 +192,7 @@ async function askModel(cfg,system,user,options={}){
     // never assume arbitrary remote endpoints implement this optional feature.
     if(options.jsonSchema&&VknAiConfig.isLocalOllama(cfg.endpoint)){
       payload.temperature=0;
-      payload.response_format={type:'json_schema',json_schema:{name:'vkn_punctuation',strict:true,schema:options.jsonSchema}};
+      payload.response_format={type:'json_schema',json_schema:{name:options.schemaName||'vkn_punctuation',strict:true,schema:options.jsonSchema}};
     }
     const send=()=>fetch(url.toString(),{method:'POST',redirect:'error',signal:controller.signal,
       headers:{'content-type':'application/json',...(cfg.apiKey?{'authorization':'Bearer '+cfg.apiKey}:{})},
@@ -259,12 +259,26 @@ async function generateAiMarkdown(cues,meta={},options={}) {
   if(phraseReview){audit.corrections=VknContextReview.appendix(phraseReview,reviewSource);if(phraseReview.note)audit.notes.push(phraseReview.note);}
   let markdown='',blocks=0;
   if(plan.options.mode==='transcript'){
-    // Small units prevent one spelling correction or malformed row from sending
-    // an entire long paragraph back to unpunctuated ASR. Display turns stay intact.
-    const units=C.punctuationUnits(turns),batches=C.transcriptBatches(units),formatted=[];
+    // Translate foreign speech as a separate, validated stage before punctuation.
+    // The immutable ASR source is never overwritten; suspect/failed ASR-side
+    // translations are retranslated here instead of leaking raw foreign text.
+    const sourceUnits=C.punctuationUnits(turns),foreignUnits=sourceUnits.filter(C.transcriptNeedsTranslation),translatedById=new Map();
+    const translationBatches=C.transcriptBatches(foreignUnits,1000);
+    for(let i=0;i<translationBatches.length;i++){
+      throwIfCancelled(options.signal);options.phaseProgress?.('翻译外语文字稿',i+1,translationBatches.length);
+      const batch=translationBatches[i],prompt=C.transcriptTranslationPrompt(batch);
+      const translated=await askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:3000,jsonSchema:C.transcriptTranslationSchema(),schemaName:'vkn_transcript_translation'});
+      const checked=C.validateTranscriptTranslation(translated,batch);
+      for(const row of checked.turns)translatedById.set(row.id,row.text);
+    }
+    const translatedUnits=sourceUnits.map(unit=>translatedById.has(unit.id)?{...unit,text:translatedById.get(unit.id),translated:true}:unit);
+    const outputTurns=translatedById.size?C.mergePunctuationUnits(turns,translatedUnits):turns;
+    if(translatedById.size)audit.notes.push('已将 '+translatedById.size+' 个外语文字片段逐条翻译为简体中文；原始听写仍保留在来源记录中。');
+    // Punctuation operates on the Chinese deliverable, never on the foreign ASR.
+    const units=C.punctuationUnits(outputTurns),batches=C.transcriptBatches(units),formatted=[];
     let failedRequests=0,layoutOnly=0,retried=0;
     for(let i=0;i<batches.length;i++){
-      throwIfCancelled(options.signal);options.phaseProgress?.('断句排版',i+1,batches.length);
+      throwIfCancelled(options.signal);options.phaseProgress?.('中文文字稿断句排版',i+1,batches.length);
       const batch=batches[i],prompt=C.transcriptPunctuationPrompt(batch);let validated;
       try{
         const text=await askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:3000,jsonSchema:C.punctuationSchema()});
@@ -292,7 +306,7 @@ async function generateAiMarkdown(cues,meta={},options={}) {
     }
     if(retried)audit.notes.push('标点局部重试：'+retried+' 个短单元；纠词与标点分别校验。');
     if(layoutOnly)audit.notes.push('基础排版回退：'+layoutOnly+' 个短单元。保留所有原字，只按连接词/词界分行；不代表语义断句已通过。');
-    markdown=C.formatTranscriptTurns(C.mergePunctuationUnits(turns,formatted));
+    markdown=C.formatTranscriptTurns(C.mergePunctuationUnits(outputTurns,formatted));
   }else{
     const partial=[];const knowledge=plan.options.mode==='knowledge',multi=plan.chunks.length>1;
     for(let i=0;i<plan.chunks.length;i++){

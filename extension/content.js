@@ -562,7 +562,7 @@
   }
   function updateWritingHint(){
     const o=formWriting();
-    const hints={knowledge:'提炼概念、要点和依据，保留来源。',script:'按场景与角色组织对白，不凭空补画面。',novel:'连贯叙事与对白；默认不新增剧情。',transcript:'整理标点和段落，保留实质内容，不做摘要。',custom:'填写你的要求，再生成对应的正文。'};
+    const hints={knowledge:'提炼概念、要点和依据，保留来源。',script:'按场景与角色组织对白，不凭空补画面。',novel:'连贯叙事与对白；默认不新增剧情。',transcript:'外语发言自动翻译为简体中文，按说话人整理标点和段落；原始听写保留，不做摘要。',custom:'填写你的要求，再生成对应的正文。'};
     $('vkn-mode-hint').textContent=hints[o.mode];$('vkn-creative-label').hidden=!['novel','custom'].includes(o.mode);
     $('vkn-request-count').textContent=o.instructions.trim()?'已填写':o.mode==='custom'?'请填写':'可选';
   }
