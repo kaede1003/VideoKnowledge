@@ -1,7 +1,7 @@
 /* Optional, local-only inference of character names grounded in timestamped speech/subtitles. */
 'use strict';
 const vknIdentityRunning=new Map();
-const vknRoleCheckVersion=1;
+const vknRoleCheckVersion=3;
 async function vknClassifySpeakerRoles(sessionKey,cfg,snapshot,cues,options={}){
  // Voice identity originates in local acoustic embeddings; only role semantics
  // are inferred here. Never infer personal identity or use a remote API.
@@ -21,8 +21,8 @@ async function vknClassifySpeakerRoles(sessionKey,cfg,snapshot,cues,options={}){
  let analyzed=0;const roles=[],held=[];
  for(const batch of R.batches(pending).slice(0,3)){
    if(options.signal?.aborted)break;
-   const req=R.prompt(batch);let parsed;
-   try{parsed=R.parse(await askModel(cfg,req.system,req.user,{signal:options.signal,maxTokens:650,timeoutMs:45000}));}
+   const req=R.prompt(batch,{title:snapshot.title});let parsed;
+   try{parsed=R.parse(await askModel(cfg,req.system,req.user,{signal:options.signal,maxTokens:1250,timeoutMs:45000}));}
    catch{break;}
    const value=R.validate(batch,parsed);
    roles.push(...value.accepted);held.push(...value.held);
@@ -36,8 +36,7 @@ async function vknClassifySpeakerRoles(sessionKey,cfg,snapshot,cues,options={}){
    const existing=VideoKnowledgeCore.cleanSpeakerRoles(current.speakerRoles||{});
    const merged={...existing};let acceptedCount=0;
    for(const [id,item] of Object.entries(resolved.roles)){
-     if(existing[id]&&existing[id].role!==item.role)continue;
-     if(!existing[id]||item.cueIds?.length>(existing[id].cueIds?.length||0)){
+     if(!existing[id]||existing[id].role!==item.role||item.cueIds?.length>(existing[id].cueIds?.length||0)||(!existing[id].displayName&&item.displayName)){
        merged[id]=item;acceptedCount++;
      }
    }
@@ -72,19 +71,25 @@ async function vknIdentifySpeakers(sessionKey,options={}){
   if(!records.length)return {updated:0,...roleResult,reason:'尚未发现带可靠声音归属的姓名候选片段'};
   const stateKey='vkn:identity:'+VknLongform.hash(sessionKey);
   const prior=(await chrome.storage.local.get(stateKey))[stateKey];
-  const checked=(prior?.schema===2 && prior?.checked && typeof prior.checked==='object')?prior.checked:{};
-  const pending=records.filter(x=>checked[x.cueId]!==VknLongform.hash(JSON.stringify([x.text,x.original,x.subtitle,x.speakerId])));
+  const checked=(prior?.schema===6 && prior?.checked && typeof prior.checked==='object')?prior.checked:{};
+  const pending=records.filter(x=>checked[x.cueId]!==VknLongform.hash(JSON.stringify([x.text,x.original,x.subtitle,x.speakerId,x.contextBefore,x.contextAfter])));
   if(!pending.length)return {updated:0,...roleResult,checked:records.length,reason:'已有姓名证据均已检查'};
   const batches=I.groups(pending);let analyzed=0,accepted=[],held=[];
   for(let i=0;i<Math.min(batches.length,3);i++){
     if(options.signal?.aborted)break;
     const batch=batches[i],prompt=I.prompt(batch);let raw;
-    try{raw=await askModel(cfg,prompt.system,prompt.user,{signal:options.signal,maxTokens:800,timeoutMs:45000});}
+    try{raw=await askModel(cfg,prompt.system,prompt.user,{signal:options.signal,maxTokens:1000,timeoutMs:45000});}
     catch(e){if(/AI_(?:INFERENCE_TIMEOUT|OUTPUT_TRUNCATED|CONNECTION|HTTP_|EMPTY_REPLY|RESPONSE_FORMAT)/.test(String(e?.message||'')))break;throw e;}
     let checked;try{checked=I.validate(batch,I.parse(raw));}catch{break;}
     accepted.push(...checked.accepted);held.push(...checked.held);analyzed+=batch.length;
   }
-  if(!analyzed)return {updated:0,...roleResult,reason:'本地模型未完成姓名推理；下次保留重新检查'};
+  // This proof can be extracted from clearly adjacent biography/response
+  // even when the model failed, returned no candidates or is unavailable.
+  const selfIntroduced=I.validate(records,I.inferSelfIntroductions(records)).accepted;
+  const biography=I.validate(records,I.inferBiographyNames(records)).accepted;
+  const addressed=I.validate(records,I.inferAddressedNames(records)).accepted;
+  if(!analyzed&&!selfIntroduced.length&&!biography.length&&!addressed.length)return {updated:0,...roleResult,reason:'本地模型未完成姓名推理；下次保留重新检查'};
+  accepted.push(...selfIntroduced,...biography,...addressed);
   const combined=[...(snapshot.speakerCandidates||[]),...held];
   const result=I.resolve({accepted,held:combined},snapshot.speakerNames||{});
   await notebookWrite(async()=>{
@@ -97,9 +102,9 @@ async function vknIdentifySpeakers(sessionKey,options={}){
     // Only metadata; no raw cue, document or cache mutation.
     await writeSession({...current,speakerNames:names,speakerEvidence:evid,speakerCandidates:[...(current.speakerCandidates||[]),...result.suggestions].slice(-100)});
   });
-  for(const rec of pending.slice(0,analyzed))checked[rec.cueId]=VknLongform.hash(JSON.stringify([rec.text,rec.original,rec.subtitle,rec.speakerId]));
+  for(const rec of pending.filter(rec=>pending.indexOf(rec)<analyzed||selfIntroduced.some(b=>b.cueId===rec.cueId)||biography.some(b=>b.cueId===rec.cueId)))checked[rec.cueId]=VknLongform.hash(JSON.stringify([rec.text,rec.original,rec.subtitle,rec.speakerId,rec.contextBefore,rec.contextAfter]));
   const safe=Object.fromEntries(Object.entries(checked).slice(-2500));
-  await chrome.storage.local.set({[stateKey]:{schema:2,checked:safe}});
+  await chrome.storage.local.set({[stateKey]:{schema:6,checked:safe}});
   return {updated:Object.keys(result.evidence).length,...roleResult,checked:analyzed,total:pending.length};
  })();
  vknIdentityRunning.set(sessionKey,operation);try{return await operation;}finally{vknIdentityRunning.delete(sessionKey);}

@@ -1,4 +1,4 @@
-importScripts('caption-review.js','caption-background.js','core.js','longform.js','speaker-identity.js','speaker-role.js','local-origin.js','ai-config.js','asr-background.js', 'lora-background.js','cache-background.js','context-review.js','longform-background.js','identity-background.js');
+importScripts('caption-review.js','caption-background.js','core.js','longform.js','speaker-identity.js','speaker-role.js','local-origin.js','ai-config.js','ai-http.js','asr-background.js', 'lora-background.js','cache-background.js','context-review.js','longform-background.js','identity-background.js');
 /* Edge MV3 service worker: privileged ASR, local cache and opt-in LLM requests. */
 'use strict';
 
@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     switch (message.type) {
       case 'VKN_GET_SESSION': return await loadSession(message.key);
       case 'VKN_SAVE_SESSION': return await saveSession(message.session);
-      case 'VKN_CLEAR_SESSION': return await notebookWrite(()=>chrome.storage.local.remove(dbKey(message.key))); 
+      case 'VKN_CLEAR_SESSION': return await notebookWrite(()=>chrome.storage.local.remove(dbKey(message.key)));
       case 'VKN_GET_PLATFORM': throw Error('CAPTIONS_REMOVED：在线字幕采集已移除，请使用语音听写。');
       case 'VKN_AI_STATUS': return await getAiStatus();
       case 'VKN_IDENTIFY_SPEAKERS': return await vknIdentifySpeakers(message.sessionKey);
@@ -64,13 +64,16 @@ async function loadSession(key) {
   return raw || null;
 }
 function saveSession(s){return notebookWrite(()=>writeSession(s));}
-async function writeSession(s) {
+async function writeSession(s,options={}) {
   if (!s || !validKey(s.key)) throw Error('视频标识无效');
   if(s.url&&VideoKnowledgeCore.pageKey(s.url)!==s.key)throw Error('SESSION_SOURCE_MISMATCH：笔记链接与视频标识不符；拒绝覆盖已有记录。');
   if((s.documents||[]).some(d=>d.sourceKey&&d.sourceKey!==s.key))throw Error('DOCUMENT_SOURCE_MISMATCH：拒绝保存其他视频的整理结果。');
-  const prior=await loadSession(s.key);
-  const segments=VideoKnowledgeCore.mergeCues((prior?.segments||[]).filter(x=>x.id),s.segments||[],MAX_CUES);
-  const pending=VideoKnowledgeCore.sortedCues(s.pendingSummary||[]).map(x=>x.id?(segments.find(y=>y.id===x.id)||x):x);
+  const prior=options.priorSnapshot||await loadSession(s.key);
+  // Incoming id-based ASR is already ordered/cleaned by mergeLiveCues inside
+  // notebookWrite. Do not re-sort and re-merge the entire two-hour history.
+  const segments=options.premerged?s.segments:VideoKnowledgeCore.mergeCues((prior?.segments||[]).filter(x=>x.id),s.segments||[],MAX_CUES);
+  const segmentsById=new Map(segments.filter(c=>c.id).map(c=>[c.id,c]));
+  const pending=VideoKnowledgeCore.sortedCues(s.pendingSummary||[]).map(x=>x.id?(segmentsById.get(x.id)||x):x);
   const documents=VideoKnowledgeCore.mergeDocumentHistory(prior||{},s);
   const selected=documents.find(x=>x.id===s.activeDocumentId)||documents.find(x=>x.id===prior?.activeDocumentId)||documents[documents.length-1];
   const session = {
@@ -118,34 +121,119 @@ async function readAiConfig(){return VknAiConfig.requireEnabled(VknAiConfig.reso
 async function getAiStatus(){
   return VknAiConfig.publicStatus(await readAiStore(),chrome.runtime.getManifest().version);
 }
+// An extension cannot create a Windows system-tray icon without a separate
+// native host. Use the built-in Edge toolbar badge for the active video tab.
+// Badges are tab-scoped, so different videos never overwrite each other's title.
+const writingBadges=new Map();
+function vknActionCall(method,args){
+  try{if(typeof chrome.action?.[method]==='function')Promise.resolve(chrome.action[method](args)).catch(()=>{});}catch{}
+}
+function vknStartWritingBadge(tabId,requestId,videoTitle){
+  if(!Number.isInteger(tabId)||tabId<0)return;
+  const old=writingBadges.get(tabId);
+  // A resumable task sends one message per model call. Do not reset its
+  // toolbar tooltip to 'preparing' each time the next short worker job starts.
+  if(old?.requestId===requestId)return;
+  const title=String(videoTitle||'当前视频').slice(0,90);
+  writingBadges.set(tabId,{requestId,title,phase:'准备整理',index:0,total:0,round:1});
+  vknActionCall('setBadgeText',{tabId,text:'AI'});
+  vknActionCall('setBadgeBackgroundColor',{tabId,color:'#277cae'});
+  vknActionCall('setTitle',{tabId,title:'VideoKnowledge · 正在整理\n'+title+'\n准备整理'});
+}
+function vknWritingBadgePhase(tabId,requestId,phase,index,total,round=1){
+  const b=writingBadges.get(tabId);if(!b||b.requestId!==requestId)return;
+  const name=String(phase||'整理正文').slice(0,70),number=Number(index)||1,all=Number(total)||1;
+  b.phase=name;b.index=number;b.total=all;b.round=Number(round)||1;
+  vknActionCall('setTitle',{tabId,title:'VideoKnowledge · AI 整理中\n'+b.title+'\n'+name+(b.round>1?' · 第'+b.round+'轮':'')+' · 第'+number+'/'+all+'批'});
+}
+function vknClearWritingBadge(tabId,requestId){
+  const b=writingBadges.get(tabId);if(!b||b.requestId!==requestId)return false;
+  writingBadges.delete(tabId);
+  vknActionCall('setBadgeText',{tabId,text:''});
+  vknActionCall('setTitle',{tabId,title:'开始 / 停止当前视频听写（Alt+Shift+V）'});
+  return true;
+}
+chrome.tabs?.onRemoved?.addListener?.(tabId=>writingBadges.delete(tabId));
 const aiJobs=new Map();let aiJobSequence=0;
 function aiJobKey(sender,kind){return (sender.tab?.id?'tab:'+sender.tab.id:'extension:'+String(sender.url||''))+':'+kind;}
 function throwIfCancelled(signal){if(signal?.aborted)throw Error('AI_CANCELLED：已取消本次整理/验证请求；原文和已有知识文档未修改。');}
+// The browser's MV3 service worker cannot be trusted to run an entire
+// two-hour transcription rewrite in one message. A single response now does at
+// most ONE model call, saves a checkpoint, and returns a continuation token.
+// The tab drives the next short event. Source input is saved once locally so
+// subsequent messages do not clone huge cue arrays on the UI thread.
 async function runAiJob(message,sender,kind){
   const key=aiJobKey(sender,kind);
   if(aiJobs.has(key))throw Error('AI_BUSY：当前任务仍在运行，可先点击取消。');
   const job={id:String(message.requestId||('job-'+(++aiJobSequence))).slice(0,120),controller:new AbortController()};
   aiJobs.set(key,job);
+  let badgeContinuing=false;
+  const inputKey='vkn:ai-input:'+VknLongform.hash(key);
   try{
-    const opts={phaseProgress:(phase,index,total)=>{if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:'VKN_WRITING_PROGRESS',requestId:job.id,phase,index,total}).catch(()=>{});},signal:job.controller.signal,writing:message.writing,filter:message.filter,progress:(index,total)=>{
-      if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:"VKN_WRITING_PROGRESS",requestId:job.id,index,total}).catch(()=>{});
-    }};
-    const result=kind==='test'?await testAiConnection(opts):await generateAiMarkdown(message.cues,{...(message.meta||{}),sessionKey:message.sessionKey},opts);
-    throwIfCancelled(opts.signal);return result;
-  }finally{if(aiJobs.get(key)===job)aiJobs.delete(key);}
+    let task=message,longRun=false;
+    if(kind==='deep'){
+      if(message.resumeOnly){
+        const cached=(await chrome.storage.local.get(inputKey))[inputKey];
+        if(!cached||cached.owner!==key||cached.requestId!==job.id||cached.sessionKey!==message.sessionKey||
+           Date.now()-Number(cached.createdAt||0)>24*3600*1000)
+          throw Error('AI_RESUME_SOURCE_MISSING：长文续跑来源已失效，请重新点击生成。旧文档与已记录转写不受影响。');
+        task=cached.task;longRun=true;
+      }else{
+        if(!Array.isArray(message.cues))throw Error('AI_SESSION_REQUIRED：缺少本次视频来源。');
+        const selection=VideoKnowledgeCore.selectWritingCues(message.cues,message.writing);
+        longRun=validKey(message.sessionKey)&&selection.cues.reduce((n,c)=>n+VknLongform.estimateTokens(VideoKnowledgeCore.transcriptLine(c)),0)>4300;
+        if(longRun){if(!validKey(message.sessionKey))throw Error('AI_SESSION_REQUIRED：长文整理缺少视频来源。');await chrome.storage.local.set({[inputKey]:{
+          owner:key,requestId:job.id,sessionKey:message.sessionKey,createdAt:Date.now(),task:message
+        }});}else if(chrome.storage.local.remove)await chrome.storage.local.remove(inputKey);
+      }
+    }
+    if(kind==='deep')vknStartWritingBadge(sender.tab?.id,job.id,task.meta?.title);
+    let phase='准备处理';
+    const opts={stepBudget:longRun?1:undefined,
+      phaseProgress:(name,index,total,round=1)=>{
+        phase=name;
+        if(kind==='deep')vknWritingBadgePhase(sender.tab?.id,job.id,name,index,total,round);
+        if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:'VKN_WRITING_PROGRESS',requestId:job.id,phase:name,index,total,round}).catch(()=>{});
+      },signal:job.controller.signal,writing:task.writing,filter:task.filter,progress:(index,total)=>{
+        if(sender.tab?.id&&chrome.tabs?.sendMessage)chrome.tabs.sendMessage(sender.tab.id,{type:'VKN_WRITING_PROGRESS',requestId:job.id,index,total}).catch(()=>{});
+      }};
+    let result;
+    try{
+      result=kind==='test'?await testAiConnection(opts):await generateAiMarkdown(task.cues,{...(task.meta||{}),sessionKey:task.sessionKey},opts);
+    }catch(e){
+      throwIfCancelled(opts.signal);
+      if(longRun&&String(e?.message||'').startsWith('AI_CONTINUE_REQUIRED'))
+        {badgeContinuing=true;return {continuing:true,phase,requestId:job.id};}
+      throw e;
+    }
+    throwIfCancelled(opts.signal);
+    if(longRun&&chrome.storage.local.remove)await chrome.storage.local.remove(inputKey);
+    return result;
+  }finally{if(aiJobs.get(key)===job)aiJobs.delete(key);if(kind==='deep'&&!badgeContinuing)vknClearWritingBadge(sender.tab?.id,job.id);}
 }
 function cancelAiJob(message,sender){
   const kind=message.kind==='filter'?'filter':message.kind==='test'?'test':'deep',key=aiJobKey(sender,kind),job=aiJobs.get(key);
-  if(!job)return {cancelled:false,message:'没有本页面的运行任务；原文保留。'};
+  if(!job){
+    // The renderer may cancel BETWEEN two short background calls; there is
+    // no AbortController then, but the toolbar must not show a ghost task.
+    if(kind==='deep'&&vknClearWritingBadge(sender.tab?.id,String(message.requestId||'')))
+      return {cancelled:true,message:'已停止后续批次，检查点和旧文稿保留。'};
+    return {cancelled:false,message:'没有本页面的运行任务；原文保留。'};
+  }
   if(message.requestId&&String(message.requestId)!==job.id)return {cancelled:false,message:'任务编号已经变化，未取消其他任务。'};
-  job.controller.abort();return {cancelled:true,message:'已请求取消本次模型连接；没有停止其他程序的模型任务。'};
+  job.controller.abort();if(kind==='deep')vknClearWritingBadge(sender.tab?.id,job.id);return {cancelled:true,message:'已请求取消本次模型连接；没有停止其他程序的模型任务。'};
 }
 async function testAiConnection(options={}){
   const cfg=await readAiConfig();
   await preflightAi(cfg,options);
   const reply=await askModel(cfg,'你是连接测试助手。','只回复：连接正常。',{...options,maxTokens:32});
-  return {verified:true,reply:reply.slice(0,180),model:cfg.model,provider:cfg.provider,source:cfg.source,saved:cfg.saved,
-    version:chrome.runtime.getManifest().version};
+  // r20 only verified stream:false. Long documents use stream:true and can be
+  // rejected by an origin policy or a custom provider despite a green test.
+  // Probe that exact transport using fixed, non-user text; do NOT upload notes.
+  const longform=await vknLongformStream(cfg,'你是长文接口连接测试助手。','只回复：长文接口正常。',
+    {...options,maxTokens:48,absoluteTimeoutMs:120000,allowNonStreamRecovery:false});
+  return {verified:true,longformVerified:true,longformTransport:longform.transport,reply:reply.slice(0,180),
+    model:cfg.model,provider:cfg.provider,source:cfg.source,saved:cfg.saved,version:chrome.runtime.getManifest().version};
 }
 
 function validateApiEndpoint(raw){return VknAiConfig.endpoint(raw);}
@@ -209,15 +297,7 @@ async function askModel(cfg,system,user,options={}){
         r=await send();
       }
     }
-    if(!r.ok){
-      if(r.status===401||r.status===403){
-        if(VknAiConfig.isLocalOllama(cfg.endpoint))throw Error(VknLocalOrigin.error(r.status,chrome.runtime.id));
-        throw Error('AI_HTTP_'+r.status+'：自定义摘要服务拒绝访问，请检查该服务的凭证和授权；不会将密钥写入错误日志。');
-      }
-      if(r.status===404)throw Error('AI_HTTP_404：摘要接口路径或模型不存在，请检查已保存的接口地址和模型名称。');
-      if(r.status===429)throw Error('AI_HTTP_429：摘要服务限流，请稍后重试。');
-      throw Error('AI_HTTP_'+r.status+'：摘要服务返回错误。已保留实时摘录和原文，请查看模型服务日志。');
-    }
+    if(!r.ok)throw Error(VknAiHttp.describe(r,cfg,'chat',chrome.runtime.id));
     let data;try{data=await r.json();}catch{throw Error('AI_RESPONSE_FORMAT：摘要接口返回的不是有效 JSON，请使用兼容聊天接口。');}
     if(data.choices?.[0]?.finish_reason==='length')throw Error('AI_OUTPUT_TRUNCATED：模型达到输出长度限制，未将截断正文保存为完整结果；请缩小整理时间范围后重试。');
     let content=data.choices?.[0]?.message?.content;
@@ -254,7 +334,8 @@ async function generateAiMarkdown(cues,meta={},options={}) {
   // An omitted intervening record is a turn boundary, never glue two sides together.
   const positions=new Map(C.sortedCues(cues).map((c,i)=>[C.cueIdentity(c),i]));
   const selected=plan.cues.map((c,i)=>({...c,readingBoundary:i>0&&positions.get(C.cueIdentity(c))!==positions.get(C.cueIdentity(plan.cues[i-1]))+1}));
-  const turns=C.readingTurns(selected);
+  const rawTurns=C.readingTurns(plan.options.mode==='transcript'?C.transcriptInputCues(selected):selected);
+  const turns=typeof VknSpeakerIdentity!=='undefined'?VknSpeakerIdentity.labelIntroducedSpeakers(rawTurns):rawTurns;
   const audit={version:1,notes:[...captionCheck.notes],corrections:'',turns:turns.map(t=>({id:t.id,label:t.label,start:t.start,end:t.end,cueIds:t.cueIds}))};
   if(phraseReview){audit.corrections=VknContextReview.appendix(phraseReview,reviewSource);if(phraseReview.note)audit.notes.push(phraseReview.note);}
   let markdown='',blocks=0;
@@ -263,17 +344,23 @@ async function generateAiMarkdown(cues,meta={},options={}) {
     // The immutable ASR source is never overwritten; suspect/failed ASR-side
     // translations are retranslated here instead of leaking raw foreign text.
     const sourceUnits=C.punctuationUnits(turns),foreignUnits=sourceUnits.filter(C.transcriptNeedsTranslation),translatedById=new Map();
-    const translationBatches=C.transcriptBatches(foreignUnits,1000);
+    const translationBatches=C.transcriptBatches(foreignUnits,1000),translationFallback=[];
     for(let i=0;i<translationBatches.length;i++){
       throwIfCancelled(options.signal);options.phaseProgress?.('翻译外语文字稿',i+1,translationBatches.length);
-      const batch=translationBatches[i],prompt=C.transcriptTranslationPrompt(batch);
-      const translated=await askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:3000,jsonSchema:C.transcriptTranslationSchema(),schemaName:'vkn_transcript_translation'});
-      const checked=C.validateTranscriptTranslation(translated,batch);
-      for(const row of checked.turns)translatedById.set(row.id,row.text);
+      const batch=translationBatches[i];
+      const checked=await C.translateTranscriptBatch(batch,async(rows,attempt,{mode}={})=>{
+        const prompt=C.transcriptTranslationPrompt(rows,{mode});
+        return askModel(cfg,prompt.system,prompt.user,{...options,maxTokens:mode==='plain'?1000:3000,
+          ...(mode==='plain'?{}:{jsonSchema:C.transcriptTranslationSchema(),schemaName:'vkn_transcript_translation'})});
+      },{allowSourceFallback:true});
+      for(const row of checked.turns)if(row.translated||row.translationFallback)translatedById.set(row.id,row.text);
+      translationFallback.push(...checked.held);
     }
-    const translatedUnits=sourceUnits.map(unit=>translatedById.has(unit.id)?{...unit,text:translatedById.get(unit.id),translated:true}:unit);
+    const untranslatedIds=new Set(translationFallback.map(item=>item.id));
+    const translatedUnits=sourceUnits.map(unit=>translatedById.has(unit.id)?{...unit,text:translatedById.get(unit.id),translated:!untranslatedIds.has(unit.id)}:unit);
     const outputTurns=translatedById.size?C.mergePunctuationUnits(turns,translatedUnits):turns;
-    if(translatedById.size)audit.notes.push('已将 '+translatedById.size+' 个外语文字片段逐条翻译为简体中文；原始听写仍保留在来源记录中。');
+    if(translatedById.size>translationFallback.length)audit.notes.push('已将 '+(translatedById.size-translationFallback.length)+' 个外语文字片段逐条翻译为简体中文；原始听写仍保留在来源记录中。');
+    if(translationFallback.length)audit.notes.push('自动补译后仍有 '+translationFallback.length+' 个外语片段没有获得可用译文，已自动保留对应原文；无需人工审批，不能视为中文译文完成。');
     // Punctuation operates on the Chinese deliverable, never on the foreign ASR.
     const units=C.punctuationUnits(outputTurns),batches=C.transcriptBatches(units),formatted=[];
     let failedRequests=0,layoutOnly=0,retried=0;
@@ -306,7 +393,7 @@ async function generateAiMarkdown(cues,meta={},options={}) {
     }
     if(retried)audit.notes.push('标点局部重试：'+retried+' 个短单元；纠词与标点分别校验。');
     if(layoutOnly)audit.notes.push('基础排版回退：'+layoutOnly+' 个短单元。保留所有原字，只按连接词/词界分行；不代表语义断句已通过。');
-    markdown=C.formatTranscriptTurns(C.mergePunctuationUnits(outputTurns,formatted));
+    {const finished=C.mergePunctuationUnits(outputTurns,formatted);markdown=C.formatTranscriptTurns(typeof VknSpeakerIdentity!=='undefined'?VknSpeakerIdentity.labelIntroducedSpeakers(finished):finished);}
   }else{
     const partial=[];const knowledge=plan.options.mode==='knowledge',multi=plan.chunks.length>1;
     for(let i=0;i<plan.chunks.length;i++){
@@ -357,17 +444,17 @@ async function vknPersistAsr(msg){
     const old=await loadSession(key)||{key,title:msg.title||'视频知识笔记',url:msg.url||'',createdAt:new Date().toISOString(),segments:[],summaries:[],pendingSummary:[]};
     const item=VideoKnowledgeCore.cleanCue(msg.data||{});
     if(!item.id)throw Error('听写结果没有可恢复的唯一标识');
-    const exists=old.segments.some(x=>x.id===item.id);
-    old.segments=VideoKnowledgeCore.mergeCues(old.segments,[item]);
+    const idIndex=new Map(old.segments.map((c,i)=>[c.id,i]).filter(([id])=>id));
+    const exists=idIndex.has(item.id);
+    old.segments=VideoKnowledgeCore.mergeLiveCues(old.segments,[item],idIndex,MAX_CUES).cues;
     old.pendingSummary ||= [];
     const i=old.pendingSummary.findIndex(x=>x.id===item.id);
     if(i>=0)old.pendingSummary[i]=item;
     else if(!exists)old.pendingSummary.push(item);
-    await writeSession(old);
+    await writeSession(old,{premerged:true,priorSnapshot:old});
     // Fire-and-forget: no extra AI request on the critical audio delivery path.
     if(!exists&&old.segments.length>=12&&old.segments.length%16===0)
       Promise.resolve().then(()=>vknIdentifySpeakers(key)).catch(()=>{});
     return {saved:true};
   });
 }
-

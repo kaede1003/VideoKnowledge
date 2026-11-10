@@ -1,7 +1,7 @@
 # git-r17 Sherpa diarization bounds-check test report
 
-**Date:** 2026-11-08  
-**Bundle:** VideoKnowledge 0.12.1 / git-r17  
+**Date:** 2026-11-08
+**Bundle:** VideoKnowledge 0.12.1 / git-r17
 **Scope:** dependency pin, runtime safety gate, isolated model-load path, and regression suite.
 
 ## Changes under test
@@ -26,10 +26,10 @@ Command: `python scripts/run_checks.py --suite unit`
 | Python unit tests | PASS — 379 / 379 |
 | Overall | PASS |
 
-Focused command: `python -m unittest tests.test_speaker_isolation_v0122 -v`  
+Focused command: `python -m unittest tests.test_speaker_isolation_v0122 -v`
 Result: **14 / 14 passed**, including empty diarization results, worker crash/timeout isolation, ASR fallback, Ollama HTTP 500 audio-watermark protection, and runtime version gating.
 
-Planning generation check: `python scripts/render_planning.py --check` — PASS.  
+Planning generation check: `python scripts/render_planning.py --check` — PASS.
 Batch-file check: both speaker batch files are ASCII and CRLF — PASS.
 
 ## Not verified in this environment

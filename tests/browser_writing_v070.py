@@ -72,14 +72,14 @@ try:
     page.locator('#vkn-ai').click();expect(page.locator('#vkn-preview')).to_contain_text('知识文档 · 模拟测试结果',timeout=10000)
     expect(page.locator('#vkn-generated')).to_contain_text('知识整理');assert page.evaluate('window.__deepCalls')==1
     page.locator('#vkn-view-report').click();assert page.evaluate('window.__deepCalls')==1
-    page.locator('#vkn-mode').select_option('script');page.locator('#vkn-requirements > summary').click();page.locator('#vkn-instructions').fill('按场景分段，保留角色对白，不增加剧情。')
-    page.locator('#vkn-ai').click();expect(page.locator('#vkn-preview')).to_contain_text('剧本 · 模拟测试结果',timeout=10000)
+    page.locator('#vkn-mode').select_option('custom');page.locator('#vkn-requirements > summary').click();page.locator('#vkn-instructions').fill('按场景分段，保留角色对白，不增加剧情。')
+    page.locator('#vkn-ai').click();expect(page.locator('#vkn-preview')).to_contain_text('自定义 · 模拟测试结果',timeout=10000)
     expect(page.locator('#vkn-document-picker option')).to_have_count(2)
     requests=rpc({'op':'requests'});assert '按场景分段' in next(x for x in reversed(requests) if x['body'])['body']['messages'][1]['content']
     page.locator('#vkn-requirements > summary').click();page.evaluate("()=>{for(const f of window.__listeners)f({type:'VKN_ASR_EVENT',sessionKey:'web:'+location.origin+location.pathname,kind:'drained',data:{}},{},()=>{});}");page.wait_for_timeout(1100);page.locator('#vkn-title').scroll_into_view_if_needed()
     page.locator('#vkn-panel').screenshot(path=str(screenshot_path('UI_V070_COMPACT.png')))
-    print('PASS knowledge and script prompts, source kept, two immutable results selectable',flush=True)
-    page.locator('#vkn-mode').select_option('novel');page.locator('#vkn-requirements > summary').click();page.locator('#vkn-instructions').fill('润色成连贯的第三人称小说，不改变主线。');page.locator('#vkn-creative').check()
+    print('PASS knowledge and custom prompts, source kept, two immutable results selectable',flush=True)
+    page.locator('#vkn-mode').select_option('custom');page.locator('#vkn-requirements > summary').click();page.locator('#vkn-instructions').fill('用原创方式改写表达，但保留基础观点。');page.locator('#vkn-creative').check()
     page.locator('#vkn-ai').click();expect(page.locator('#vkn-generated')).to_contain_text('创作改写',timeout=10000)
     page.locator('#vkn-mode').select_option('transcript');assert not page.locator('#vkn-creative').is_checked();page.locator('#vkn-instructions').fill('保留问答顺序。')
     page.locator('#vkn-range-start').fill('00:05');page.locator('#vkn-range-end').fill('00:11');page.locator('#vkn-ai').click();expect(page.locator('#vkn-preview')).to_contain_text('测试发言 2',timeout=10000)
@@ -89,22 +89,22 @@ try:
     page.locator('#vkn-instructions').fill('');n=page.evaluate('window.__deepCalls');page.locator('#vkn-ai').click();expect(page.locator('#vkn-status')).to_contain_text('自定义整理要求');assert page.evaluate('window.__deepCalls')==n
     page.locator('#vkn-instructions').fill('整理成中文问答稿，保留不同说话人的观点。');page.locator('#vkn-range-start').fill('');page.locator('#vkn-range-end').fill('');page.locator('#vkn-ai').click()
     expect(page.locator('#vkn-preview')).to_contain_text('自定义 · 模拟测试结果',timeout=10000);expect(page.locator('#vkn-document-picker option')).to_have_count(5)
-    print('PASS all five modes, opt-in creative boundary, time range, missing instructions reject without call',flush=True)
+    print('PASS three authoring modes and five generated documents, opt-in creative boundary, time range, missing instructions reject without call',flush=True)
     # Choosing previous output and exporting never invokes model or appends raw transcript.
-    options=page.locator('#vkn-document-picker option');script_id=next(o.get_attribute('value') for o in options.all() if '剧本' in o.inner_text())
-    before=page.evaluate('window.__deepCalls');page.locator('#vkn-document-picker').select_option(script_id);expect(page.locator('#vkn-preview')).to_contain_text('剧本 · 模拟测试结果')
+    options=page.locator('#vkn-document-picker option');script_id=next(o.get_attribute('value') for o in options.all() if '自定义' in o.inner_text())
+    before=page.evaluate('window.__deepCalls');page.locator('#vkn-document-picker').select_option(script_id);expect(page.locator('#vkn-preview')).to_contain_text('自定义 · 模拟测试结果')
     with page.expect_popup() as popup:page.locator('#vkn-read-full').click()
-    doc=popup.value;expect(doc.locator('body')).to_contain_text('场地未交代');assert '测试发言 40' not in doc.locator('body').inner_text();doc.close()
+    doc=popup.value;expect(doc.locator('body')).to_contain_text('按用户要求整理');assert '测试发言 40' not in doc.locator('body').inner_text();doc.close()
     page.locator('#vkn-export-menu > summary').click()
     with page.expect_download() as d:page.locator('#vkn-md').click()
-    path=Path(d.value.path());text=path.read_text(encoding='utf-8-sig');assert '剧本' in text and '测试发言 40' not in text
+    path=Path(d.value.path());text=path.read_text(encoding='utf-8-sig');assert '自定义' in text and '测试发言 40' not in text
     assert page.evaluate('window.__deepCalls')==before
     page.wait_for_timeout(1200);session=next(v for k,v in rpc({'op':'get','key':None}).items() if k.startswith('vkn:session:'))
     assert len(session['documents'])==5 and len(session['segments'])==46 and session['activeDocumentId']==script_id
     print('PASS selected result full reader/export and history persisted without overwriting raw records',flush=True)
     # Failure and cancellation must not replace an existing output.
     rpc({'op':'failNext'});page.locator('#vkn-ai').click();expect(page.locator('#vkn-status')).to_contain_text('生成失败',timeout=10000)
-    expect(page.locator('#vkn-preview')).to_contain_text('剧本 · 模拟测试结果');expect(page.locator('#vkn-document-picker option')).to_have_count(5)
+    expect(page.locator('#vkn-preview')).to_contain_text('自定义 · 模拟测试结果');expect(page.locator('#vkn-document-picker option')).to_have_count(5)
     page.evaluate('window.__holdGenerate=true');page.locator('#vkn-ai').click();expect(page.locator('#vkn-ai-cancel')).to_be_visible();page.locator('#vkn-ai-cancel').click()
     page.evaluate("window.__heldReply({ok:true,data:{markdown:'不应保存的迟到输出',blocks:1}});window.__holdGenerate=false")
     expect(page.locator('#vkn-preview')).not_to_contain_text('迟到输出');expect(page.locator('#vkn-document-picker option')).to_have_count(5)
@@ -116,7 +116,7 @@ try:
     expect(page.locator('#vkn-speaker-list')).to_contain_text('说话人1')
     expect(page.locator('#vkn-speaker-list')).to_contain_text('说话人2')
     page.locator('#vkn-tools > summary').click();page.wait_for_timeout(1300);page.evaluate('window.__closing=true');page.close()
-    page,errors=load_page(browser);expect(page.locator('#vkn-document-picker option')).to_have_count(5);expect(page.locator('#vkn-preview')).to_contain_text('剧本 · 模拟测试结果')
+    page,errors=load_page(browser);expect(page.locator('#vkn-document-picker option')).to_have_count(5);expect(page.locator('#vkn-preview')).to_contain_text('自定义 · 模拟测试结果')
     assert not page.locator('#vkn-transcript').evaluate('(e)=>e.open');assert not page.locator('#vkn-tools').evaluate('(e)=>e.open')
     print('PASS persisted selected result/form/collapse and optional stage/speaker tools',flush=True)
     for width in [1365,760,390]:

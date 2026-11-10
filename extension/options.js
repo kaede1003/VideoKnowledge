@@ -75,11 +75,11 @@ async function saveAndVerify(){
   try{
     const cfg=await saveSummaryForm();didSave=true;
     if(!cfg.enabled){status('已保存离线模式：不会调用模型。实时记录、离线阶段摘录和导出仍可使用。');return;}
-    status('✓ 摘要设置已保存。正在通过与深度整理相同的后台路径执行短文本推理；首次加载模型可能较慢。\n此测试只发送“连接正常”的测试提示，不发送视频笔记。');
+    status('✓ 摘要设置已保存。正在分别验证普通聊天 POST 与长文流式 POST；首次加载模型可能较慢。\n只发送固定测试文字，不发送视频笔记或检查点。');
     verificationId='verify-'+Date.now();$('cancelTest').hidden=false;
     const r=await chrome.runtime.sendMessage({type:'VKN_AI_TEST',requestId:verificationId});
     if(!r?.ok)throw Error(r?.error||'AI_TEST_CHANNEL：后台未返回测试结果。请重新加载原扩展后重试。');
-    status('✓ 摘要配置已保存，后台短文本推理验证通过。\n模型：'+r.data.model+'\n模型回复：'+r.data.reply+'\n现在可返回视频面板，点击“AI 深度整理”。该检测不保证长视频的整理质量或速度。');
+    status('✓ 摘要配置已保存，普通聊天及长文请求通道均已验证通过。\n长文响应格式：'+(r.data.longformTransport==='sse'?'流式 SSE':'兼容 JSON')+'\n模型：'+r.data.model+'\n模型回复：'+r.data.reply+'\n现在可返回视频面板，点击“AI 深度整理”。该检测不保证长视频的整理质量或速度。');
   }catch(e){status((didSave?'设置已经保存，但推理验证失败：':'配置未保存：')+e.message,true);}
   finally{verificationId=null;$('cancelTest').hidden=true;setBusy(false);}
 }

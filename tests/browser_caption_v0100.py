@@ -37,7 +37,16 @@ try:
     page.wait_for_timeout(2100);page.evaluate('async()=>await window.__captionTick()')
     page.locator('#vkn-transcript > summary').click();expect(page.locator('#vkn-live')).to_contain_text('人们很害怕未知的事情')
     expect(page.locator('#vkn-caption-count')).to_contain_text('1')
-    page.wait_for_timeout(1300);saved=next(v for k,v in rpc({'op':'get','key':None}).items() if k.startswith('vkn:session:'))
+    # Persist is deliberately debounced for multi-hour sessions; await the saved review, not a fixed 1.3s.
+    saved = None
+    for _ in range(16):
+        page.wait_for_timeout(450)
+        matches = [v for k,v in rpc({'op':'get','key':None}).items()
+                   if k.startswith('vkn:session:') and v.get('segments') and v.get('captionReviews')]
+        if matches:
+            saved = matches[0]
+            break
+    assert saved is not None, 'caption correction did not persist within 7.2 seconds'
     assert saved['segments'][0]['original']=='人们很害怕位置的事情' and saved['captionReviews'][saved['segments'][0]['id']]['status']=='applied'
     assert len(saved['segments'])==1 and len(saved['captionObservations'])==1
     page.locator('#vkn-caption-details > summary').click();page.locator('#vkn-panel .body').evaluate('(e)=>e.scrollTop=0');page.locator('#vkn-panel').screenshot(path=str(screenshot_path('V0100_CAPTION_REVIEW.png')));page.locator('#vkn-caption-details > summary').click()

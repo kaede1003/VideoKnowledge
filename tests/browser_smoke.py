@@ -40,7 +40,7 @@ try:
              else if(message.type==='VKN_ASR_STOP'){window.__mockAsrRunning=false;data={running:false,paused:false,tabId:1};}
              else if(message.type==='VKN_ASR_PAUSE'){window.__mockAsrPaused=true;data={running:true,paused:true,tabId:1};}
              else if(message.type==='VKN_ASR_RESUME'){window.__mockAsrPaused=false;data={running:true,paused:false,tabId:1};}
-             else if(message.type==='VKN_AI_GENERATE'){window.__manualDeepCalls++;data={markdown:'## 手动深度整理\\n\\n人工触发测试',blocks:1};} 
+             else if(message.type==='VKN_AI_GENERATE'){window.__manualDeepCalls++;data={markdown:'## 手动深度整理\\n\\n人工触发测试',blocks:1};}
              else if(message.type==='VKN_AI_PERIODIC_SUMMARY') return reply({ok:false,error:'AI阶段功能未启用'});
              if(typeof reply==='function')reply({ok:true,data});
              else return Promise.resolve({ok:true,data});

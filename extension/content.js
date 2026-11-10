@@ -71,6 +71,20 @@
   #vkn-result-audit{max-height:260px;overflow:auto;overflow-wrap:anywhere}
   .export-menu .row{position:static;margin:6px 0 0;width:auto;max-width:100%;box-shadow:none}
   .note.continuation{border-top-style:dashed}.source-cue{margin:8px 0}.source-cue p{overflow-wrap:anywhere}
+  /* A fixed-size, dedicated progress panel: no more jumping one-line status. */
+  .task-progress{min-height:156px;margin-top:10px;padding:11px 12px;border:1px solid #41617c;border-radius:10px;background:#192c40;overflow:hidden}
+  .task-progress-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:650;color:#e2f1ff}
+  .task-progress-phase-number{flex:none;white-space:nowrap;font-size:11px;color:#9fbed7;font-weight:500;font-variant-numeric:tabular-nums}
+  .task-progress-video{margin:5px 0 8px;color:#aec4da;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .task-progress-line{display:flex;gap:8px;justify-content:space-between;align-items:center;min-width:0;margin-bottom:6px}
+  .task-progress-phase{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f0f7ff;font-weight:600}
+  .task-progress-percent{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11px;color:#99ccf5}
+  .task-progress-meter{display:block;width:100%;height:12px;border:0;border-radius:8px;overflow:hidden;background:#0b1b2d;accent-color:#49a5e1}
+  .task-progress-meter::-webkit-progress-bar{background:#0b1b2d;border-radius:8px}
+  .task-progress-meter::-webkit-progress-value{background:linear-gradient(90deg,#318acc,#64c3f0);border-radius:8px;transition:width .18s ease-out}
+  .task-progress-meter::-moz-progress-bar{background:#57b7e9;border-radius:8px}
+  .task-progress-count{font-size:11px;margin-top:7px;color:#c6daec;font-variant-numeric:tabular-nums;min-height:1.5em}
+  .task-progress-note{font-size:10px;margin-top:3px;color:#879fb5;line-height:1.35}
   @media(max-height:520px){.panel{max-height:calc(100dvh - 30px)}.body{max-height:calc(100dvh - 112px)}}
   `;
   shadow.appendChild(style);
@@ -92,7 +106,7 @@
         </details>
         <section class="compose" aria-label="内容整理">
           <label class="section-label" for="vkn-mode">整理成</label>
-          <select id="vkn-mode" aria-label="整理方式"><option value="knowledge">知识文档</option><option value="script">剧本</option><option value="novel">小说</option><option value="transcript">文字稿</option><option value="custom">按我的要求</option></select>
+          <select id="vkn-mode" aria-label="整理方式"><option value="knowledge">知识文档</option><option value="transcript">文字稿</option><option value="custom">按我的要求</option></select>
           <p class="muted mode-hint" id="vkn-mode-hint">提炼概念、要点和依据，保留来源。</p>
           <details id="vkn-requirements" class="sub-details"><summary>补充要求 / 范围 <span class="muted" id="vkn-request-count">可选</span></summary>
             <label for="vkn-instructions" class="sr-only">补充整理要求</label>
@@ -109,7 +123,14 @@
             <p id="vkn-caption-status" class="muted" role="status">等待开始听写。</p>
           </details>
           <div class="row compose-actions"><button id="vkn-ai" class="btn primary">生成整理</button><button id="vkn-ai-cancel" class="btn" hidden>取消生成</button><button id="vkn-view-report" class="btn" disabled>查看结果</button></div>
-          <div class="hint" id="vkn-task-progress" hidden></div>
+          <section class="task-progress" id="vkn-task-progress" aria-label="整理任务进度" hidden>
+            <div class="task-progress-top"><span>AI 正在整理笔记</span><span class="task-progress-phase-number" id="vkn-task-stage-number">准备中</span></div>
+            <div class="task-progress-video" id="vkn-task-video" title="正在整理的视频"></div>
+            <div class="task-progress-line"><span class="task-progress-phase" id="vkn-task-stage" role="status" aria-live="polite">准备模型连接</span><span class="task-progress-percent" id="vkn-task-percent">—</span></div>
+            <progress class="task-progress-meter" id="vkn-task-meter" max="1" aria-label="当前阶段批次进度"></progress>
+            <div class="task-progress-count" id="vkn-task-count">正在连接文字模型…</div>
+            <div class="task-progress-note">进度条只统计当前阶段已完成的批次；跨章节合并可能有多轮，暂不估算总耗时。</div>
+          </section>
         </section>
         <section id="vkn-result-section" class="result-section" aria-label="整理结果" hidden>
           <div class="result-heading"><h3 id="vkn-report-heading">整理结果</h3><span class="muted" id="vkn-generated">尚未生成</span></div>
@@ -127,7 +148,7 @@
           <div class="row"><button id="vkn-retry" class="btn">重试翻译</button><button id="vkn-local-help" class="btn">安装帮助</button><button id="vkn-export-notebook" class="btn">导出全部笔记 / 原文</button><button id="vkn-export-audit" class="btn">导出核查 JSON</button></div>
           <details id="vkn-stage-details" class="sub-details"><summary>阶段摘要 <span class="muted" id="vkn-summary-tag">每5分钟</span></summary><p id="vkn-summary-hint" class="hint"></p><button id="vkn-summary-now" class="btn">立即生成阶段摘要</button><div id="vkn-summaries"></div></details>
           <details id="vkn-highlights-details" class="sub-details"><summary>本地关键句摘录</summary><div class="notes" id="vkn-highlights"></div></details>
-          <details class="sub-details" id="vkn-speakers"><summary>自动识别声音与剧情角色</summary><p>先按音色分组，再通过多段台词推断旁白、系统播报、剧情角色；姓名另凭自我介绍或同步字幕。无法确定时保留编号，不将剧情提及的人名误当身份。</p><p class="muted" id="vkn-speaker-hint">有新记录后自动分析；结果是推测而非真实身份确认。</p><div class="speaker-list" id="vkn-speaker-list"></div></details>
+          <details class="sub-details" id="vkn-speakers"><summary>自动识别声音与剧情角色</summary><p>默认由本地模型根据整段对话及视频字幕自动给每组声音分配内容身份，例如主持人、嘉宾、旁白或剧情人物，无需逐条审核。明确自报或被介绍的姓名可以自动绑定；无法从声音或台词得知的真实姓名不会编造。</p><p class="muted" id="vkn-speaker-hint">有新记录后自动分析；身份称呼自动应用，无法证明的真实姓名仍不强猜。</p><div class="speaker-list" id="vkn-speaker-list"></div></details>
           <details class="sub-details" id="vkn-lora-details"><summary>LoRA 图片采集</summary>
             <p>输入画面要求，保存后主动开始采图。视觉筛选需本地模型，默认关闭。</p>
             <textarea id="vkn-lora-prompt" class="lora-input" maxlength="900" placeholder="只保留清晰完整的单人全身镜头，每4秒一帧，最多80张。"></textarea>
@@ -147,7 +168,7 @@
   shadow.appendChild(wrap);
   (document.documentElement||document.body).appendChild(host);
 
-  const state={navigationEpoch:0,navigationPending:false,liveLimit:30,progress:null,stopRequested:false,stopAllBusy:false,asrActionId:0,loraActionId:0,aiRequestId:null,asrDraining:false,session:null,key:'',full:[],active:true,open:false,lastFullKey:'',lastPageUrl:'',video:null,settings:{},fetching:false,working:false,summaryBusy:false,summaryStartedAt:0,summaryNote:'',lastAiCount:0,lastAiAt:0,saveTimer:null,refreshTimer:null,queued:[],lastTick:0,tips:'',lastError:'',source:'live',switching:false,lastSettingsRead:0,lastAsrStatusRead:0,asrRunning:false,asrPaused:false,asrBusy:false,asrNote:'',loraRunning:false,loraProcessing:false,loraBusy:false,loraRule:null,loraId:null,loraTabId:null,loraStatus:null,loraNote:'',loraPlanError:''};
+  const state={navigationEpoch:0,navigationPending:false,liveLimit:30,progress:null,aiMode:'knowledge',taskSaving:false,stopRequested:false,stopAllBusy:false,asrActionId:0,loraActionId:0,aiRequestId:null,asrDraining:false,session:null,key:'',full:[],active:true,open:false,lastFullKey:'',lastPageUrl:'',video:null,settings:{},fetching:false,working:false,summaryBusy:false,summaryStartedAt:0,summaryNote:'',lastAiCount:0,lastAiAt:0,saveTimer:null,refreshTimer:null,queued:[],lastTick:0,tips:'',lastError:'',source:'live',switching:false,lastSettingsRead:0,lastAsrStatusRead:0,cueIndex:null,liveRevision:0,speakerRevision:0,renderedLiveKey:'',speakerLabelCache:null,speakerLabelVersion:-1,qualityCache:null,saveFirstAt:0,streamPaintTimer:null,asrRunning:false,asrPaused:false,asrBusy:false,asrNote:'',loraRunning:false,loraProcessing:false,loraBusy:false,loraRule:null,loraId:null,loraTabId:null,loraStatus:null,loraNote:'',loraPlanError:''};
   const call = (type,args={}) => new Promise((resolve,reject)=>{
     const limit={'VKN_ASR_START':15000,'VKN_ASR_STOP':9000,'VKN_ASR_STOP_ALL':10000,'VKN_ASR_STATUS_QUERY':4000,'VKN_ASR_PAUSE':6000,'VKN_ASR_RESUME':6000,'VKN_LORA_STOP':9000}[type];
     const timer=limit?setTimeout(()=>reject(Error('操作未在时限内确认。请暂停视频，再点「停止全部采集」；必要时暂时禁用扩展。')),limit):null;
@@ -183,7 +204,7 @@
     catch(e){if(state.session===s)$('vkn-save-status').textContent='保存失败：'+e.message.slice(0,38);return false;}
   }
   async function saveNow(){
-    clearTimeout(state.saveTimer);state.saveTimer=null;
+    clearTimeout(state.saveTimer);state.saveTimer=null;state.saveFirstAt=0;
     const s=currentSession();if(!s)return false;
     const saved=await persistSnapshot(s);
     if(saved&&state.session===s)$('vkn-save-status').textContent='已自动保存';
@@ -191,28 +212,82 @@
   }
   function scheduleSave(){
     $('vkn-save-status').textContent='保存中…';clearTimeout(state.saveTimer);
-    state.saveTimer=setTimeout(saveNow,900);
+    if(!state.saveFirstAt)state.saveFirstAt=Date.now();
+    // Large notebooks should not be cloned/serialized for every ASR packet.
+    // Force a durable flush even during an uninterrupted high-rate stream.
+    const elapsed=Date.now()-state.saveFirstAt;
+    state.saveTimer=setTimeout(saveNow,Math.max(0,Math.min(state.asrRunning?3200:900,12000-elapsed)));
+  }
+  function invalidateLive(speakers=false){
+    state.liveRevision++;state.qualityCache=null;
+    if(speakers){state.speakerRevision++;state.speakerLabelCache=null;}
+  }
+  function renderStreamSoon(){
+    if(state.streamPaintTimer)return;
+    state.streamPaintTimer=setTimeout(()=>{state.streamPaintTimer=null;render();},130);
+  }
+  function speakerLabels(){
+    if(state.speakerLabelCache&&state.speakerLabelVersion===state.speakerRevision)return state.speakerLabelCache;
+    const labels=new Map(C.speakerCatalog(state.session||{}).map(x=>[x.id,x.label]));
+    state.speakerLabelCache=labels;state.speakerLabelVersion=state.speakerRevision;
+    return labels;
   }
   function showStatus(msg,style=''){$('vkn-status').textContent=msg;$('vkn-status').className='status '+style;}
+  function renderTaskProgress(){
+    const running=!!state.working,p=state.progress,task=$('vkn-task-progress'),bubble=$('vkn-bubble');
+    task.hidden=!running;
+    const text=(id,value)=>{const el=$(id);if(el.textContent!==value)el.textContent=value;};
+    const bubbleLabel=running?'笔记 · AI整理中':'笔记';
+    if(bubble.textContent!==bubbleLabel)bubble.textContent=bubbleLabel;
+    bubble.title=running?'正在整理：'+(state.session?.title||'当前视频')+'（收起不会停止任务）':'打开视频笔记';
+    if(!running)return;
+    const videoTitle=state.session?.title||'当前视频';
+    text('vkn-task-video','视频：'+videoTitle);
+    $('vkn-task-video').title=videoTitle; // Full title on hover when the line is ellipsized.
+    const meter=$('vkn-task-meter');
+    if(state.taskSaving){
+      text('vkn-task-stage-number','保存结果');text('vkn-task-stage','正在保存知识文档');
+      text('vkn-task-count','模型处理已结束，正在保存本视频的整理结果…');
+      text('vkn-task-percent','最后一步');
+      meter.removeAttribute('value');return;
+    }
+    if(!p){
+      text('vkn-task-stage-number','准备中');text('vkn-task-stage','正在连接文字模型');
+      text('vkn-task-count','模型响应后会显示当前阶段和正在处理的批次');
+      text('vkn-task-percent','—');meter.removeAttribute('value');return;
+    }
+    text('vkn-task-stage-number',`阶段 ${p.stageIndex} / ${p.stageTotal}`);
+    text('vkn-task-stage',p.phase+(p.round>1?` · 第 ${p.round} 轮`:(p.phase==='汇总全局主题'||p.phase==='跨章节主题合并与去重')?' · 第 1 轮':''));
+    text('vkn-task-count',`已完成 ${p.done} / ${p.total} 批 · 正在处理第 ${p.index} 批`);
+    text('vkn-task-percent',p.percent+'% · 本阶段');
+    // Avoid restarting native progress-bar animation during unrelated ASR
+    // updates while this model batch is still running.
+    if(meter.max!==p.total)meter.max=p.total;
+    if(!meter.hasAttribute('value')||meter.value!==p.done)meter.value=p.done;
+    meter.setAttribute('aria-valuetext',`${p.phase}，本轮已完成 ${p.done} / ${p.total} 批`);
+  }
   function setOpen(open){state.open=!!open;$('vkn-panel').hidden=!state.open;$('vkn-bubble').hidden=state.open;if(open)render();}
   async function switchVideo(key){
     if(key===state.key&&(state.switching||state.session))return;
     const epoch=++state.navigationEpoch,previous=state.session;
     const pageUrl=location.href;
     // Detach synchronously, before storage/network awaits. A cannot masquerade as B.
-    clearTimeout(state.saveTimer);state.saveTimer=null;
+    clearTimeout(state.saveTimer);state.saveTimer=null;state.saveFirstAt=0;
+    clearTimeout(state.streamPaintTimer);state.streamPaintTimer=null;
+    state.cueIndex=null;state.speakerLabelCache=null;state.speakerLabelVersion=-1;
+    state.liveRevision++;state.speakerRevision++;state.renderedLiveKey='';state.qualityCache=null;
     clearTimeout(speakerRefreshTimer);speakerRefreshTimer=null;
-    speakerRoleHint='有新记录后自动分析角色类型；结果是推测而非真实身份确认。';
+    speakerRoleHint='有新记录后自动结合前后对话命名内容角色；无需人工审批。';
     state.session=null;state.key=key;state.switching=true;state.navigationPending=false;
     if(state.loraRunning||state.loraBusy)call('VKN_LORA_STOP').catch(()=>{});
     if(state.asrRunning||state.asrBusy)call('VKN_ASR_STOP').catch(()=>{});
     if(state.aiRequestId)call('VKN_AI_CANCEL',{requestId:state.aiRequestId}).catch(()=>{});
-    state.aiRequestId=null;state.working=false;state.summaryBusy=false;
+    state.aiRequestId=null;state.working=false;state.taskSaving=false;state.summaryBusy=false;
     state.asrActionId++;state.loraActionId++;state.asrRunning=false;state.asrBusy=false;state.asrPaused=false;
     state.loraRunning=false;state.loraBusy=false;state.loraProcessing=false;state.stopRequested=true;
     state.asrDraining=false;state.asrNote='';state.lastTick=0;state.lastAsrStatusRead=0;
     resetCaptionRuntime();
-    state.liveLimit=30;state.progress=null;state.lastFullKey='';state.full=[];state.lastError='';state.tips='';state.source='live';state.queued=[];state.summaryStartedAt=0;state.summaryNote='';
+    state.liveLimit=30;state.progress=null;state.taskSaving=false;state.lastFullKey='';state.full=[];state.lastError='';state.tips='';state.source='live';state.queued=[];state.summaryStartedAt=0;state.summaryNote='';
     host.style.display=key?'block':'none';render();
     try{
       // Old snapshot always saves under its own key, never under the new page key.
@@ -236,7 +311,7 @@
   // Role inference is incremental and optional: it must never block live ASR
   // or submit audio to the text model. Saving first prevents stale snapshots.
   let speakerCheckBusy=false,speakerRefreshTimer=null;
-  let speakerRoleHint='有新记录后自动分析角色类型；结果是推测而非真实身份确认。';
+  let speakerRoleHint='有新记录后自动结合前后对话命名内容角色；无需人工审批。';
   const lastSpeakerCheck=new Map();
   async function refreshSpeakerRoles(force=false){
     const snapshot=currentSession();if(!snapshot||speakerCheckBusy)return;
@@ -244,15 +319,15 @@
     if(trusted<(force?1:4))return;
     if(!force&&Date.now()-(lastSpeakerCheck.get(snapshot.key)||0)<45000)return;
     speakerCheckBusy=true;
-    speakerRoleHint='正在用本地文字模型分析不同声音的台词…';
+    speakerRoleHint='正在自动推断各个声音的内容身份与视频中明确出现的姓名…';
     if($('vkn-speakers').open)renderSpeakers();
     try{
       if(!await saveNow()||currentSession()!==snapshot)return;
       lastSpeakerCheck.set(snapshot.key,Date.now());
       const result=await call('VKN_IDENTIFY_SPEAKERS',{sessionKey:snapshot.key});
       if(currentSession()!==snapshot)return;
-      speakerRoleHint=result.roleUpdated?`已推测 ${result.roleUpdated} 组声音的剧情类型，可展开查看证据。`:
-        (result.reason||'暂无新的可靠角色类别依据，原有说话人编号保留。');
+      speakerRoleHint=result.roleUpdated?`已为 ${result.roleUpdated} 组声音自动分配内容身份；无需确认，可展开查看依据。`:
+        (result.reason||'目前无法明确匹配更多声音，已自动保留已识别的身份。');
       if(result.updated||result.roleUpdated){
         const fresh=await call('VKN_GET_SESSION',{key:snapshot.key});
         if(currentSession()!==snapshot||!fresh)return;
@@ -261,7 +336,7 @@
         snapshot.speakerCandidates=fresh.speakerCandidates||snapshot.speakerCandidates;
         snapshot.speakerRoles={...snapshot.speakerRoles,...fresh.speakerRoles};
         snapshot.speakerRoleCandidates=fresh.speakerRoleCandidates||snapshot.speakerRoleCandidates;
-        scheduleSave();render();
+        invalidateLive(true);scheduleSave();render();
       }else if($('vkn-speakers').open)renderSpeakers();
     }catch(e){if(currentSession()===snapshot){speakerRoleHint='角色分析暂不可用，可能是本地文字模型未就绪；原始听写仍保留。';if($('vkn-speakers').open)renderSpeakers();console.warn('Automatic speaker role analysis deferred:',String(e?.message||e));}}
     finally{speakerCheckBusy=false;}
@@ -272,14 +347,22 @@
   }
   function append(items){
     if(!currentSession()||!items?.length||(!state.active&&!items.some(x=>x.source==='local-asr')))return;
-    const current=state.session,oldKeys=new Set(current.segments.map(C.cueIdentity));
-    const merged=C.mergeCues(current.segments,items),fresh=merged.filter(x=>!oldKeys.has(C.cueIdentity(x)));
-    current.segments=merged;current.pendingSummary ||= [];
-    current.pendingSummary=current.pendingSummary.map(x=>x.id?(merged.find(y=>y.id===x.id)||x):x);
-    current.pendingSummary.push(...fresh);
-    if(fresh.length&&!state.summaryStartedAt)state.summaryStartedAt=Date.now();
-    scheduleSave();render();
-    if(fresh.some(c=>c.speakerId))scheduleSpeakerRefresh();
+    const current=state.session;
+    const merged=C.mergeLiveCues(current.segments,items,state.cueIndex);
+    state.cueIndex=merged.index;
+    if(!merged.changed)return;
+    current.segments=merged.cues;current.pendingSummary ||= [];
+    // Pending drafts keep the newest revision without an O(pending * all cues)
+    // search for every ASR packet.
+    const changedIds=new Set(items.map(x=>x.id).filter(Boolean));
+    const newById=new Map([...changedIds].map(id=>[id,merged.cues[merged.index.get(id)]]).filter(x=>x[1]));
+    current.pendingSummary=current.pendingSummary.map(x=>x.id?(newById.get(x.id)||x):x);
+    current.pendingSummary.push(...merged.fresh);
+    if(merged.fresh.length&&!state.summaryStartedAt)state.summaryStartedAt=Date.now();
+    const known=state.speakerLabelCache;
+    const newSpeaker=!!known && items.some(c=>c.speakerId&&!known.has(c.speakerId));
+    invalidateLive(newSpeaker);scheduleSave();renderStreamSoon();
+    if(merged.fresh.some(c=>c.speakerId))scheduleSpeakerRefresh();
     checkCaptionMatches().catch(()=>{});
   }
   const boundVideos=new WeakSet();
@@ -369,10 +452,25 @@
   }
   function renderLive(){
     const el=$('vkn-live');
-    if(!$('vkn-transcript').open){el.replaceChildren();return;}
+    if(!$('vkn-transcript').open){el.replaceChildren();state.renderedLiveKey='';return;}
+    const ss=state.session,all=ss?.segments||[];
+    const renderKey=[ss?.key,state.liveRevision,state.speakerRevision,state.liveLimit].join('|');
+    if(state.renderedLiveKey===renderKey)return;
     const previousScroll=el.scrollTop,opened=new Set([...el.querySelectorAll('details[open]')].map(x=>x.dataset.cue));el.replaceChildren();
-    const cues=C.cuesWithSpeakers(state.session||{}),turns=C.readingTurns(cues);
-    if(!cues.length){const span=document.createElement('div');span.className='hint';span.textContent='暂无转写。语音结果完成后自动合并为发言段落。';el.appendChild(span);return;}
+    // Only convert the tail needed to fill the visible page. Earlier records
+    // remain in the notebook/export; 'load more' progressively widens the tail.
+    let windowSize=Math.max(120,state.liveLimit*5),start=0,turns=[];
+    if(all.length){
+      do{
+        start=Math.max(0,all.length-windowSize);
+        turns=C.readingTurns(C.cuesWithSpeakers(ss,all.slice(start),speakerLabels()));
+        if(start===0||turns.length>state.liveLimit+1)break;
+        windowSize=Math.min(all.length,windowSize*2);
+      }while(true);
+    }
+    state.renderedLiveKey=renderKey;
+    if(!all.length){const span=document.createElement('div');span.className='hint';span.textContent='暂无转写。语音结果完成后自动合并为发言段落。';el.appendChild(span);return;}
+    const batch=document.createDocumentFragment();
     for(const turn of turns.slice(-state.liveLimit).reverse()){
       const div=document.createElement('div');div.className='note';
       const a=document.createElement('a');a.href=C.tsUrl(state.session.url,turn.start);a.target='_blank';a.rel='noopener noreferrer';
@@ -380,23 +478,28 @@
       if(turn.label){const badge=document.createElement('span');badge.className='speaker';badge.textContent=turn.label;badge.title='自动声音分组；归属不确定时不合并。';div.appendChild(badge);}
       const p=document.createElement('p');p.style.whiteSpace='pre-wrap';p.textContent=C.sentenceLines(turn.text).join('\n');div.appendChild(p);
       const d=document.createElement('details');d.className='muted';d.dataset.cue=turn.cueIds[0];d.open=opened.has(d.dataset.cue);
-      const h=document.createElement('summary');const risks=turn.records.filter(c=>c.needsReview||c.textError||c.translationStatus==='needs_review').length;
+      const h=document.createElement('summary');const risks=turn.records.filter(C.cueNeedsReview).length;
       h.textContent='来源与校对（'+turn.records.length+'条'+(risks?'，有疑点':'')+'）';d.appendChild(h);
+      const populateSources=()=>{if(d.dataset.loaded)return;d.dataset.loaded='1';
       for(const c of turn.records){
         const item=document.createElement('div');item.className='source-cue';
         const time=document.createElement('a');time.href=C.tsUrl(state.session.url,c.time);time.target='_blank';time.rel='noopener noreferrer';time.textContent=C.formatTime(c.time);item.appendChild(time);
         const source=document.createElement('p');source.style.whiteSpace='pre-wrap';
         source.textContent='原始识别：'+(c.original||c.text)+(c.translation?'\n译文：'+c.translation:'')+(c.corrected?'\n纠词候选：'+c.corrected:'')+(c.manuallyEdited?'\n人工修订：'+c.manualText:'')+(c.captionReview?'\n字幕依据：'+c.captionReview.evidence+'\n字幕校对：'+c.captionReview.reason:'');item.appendChild(source);
-        if(c.captionReview?.status==='applied'){const undo=document.createElement('button');undo.className='speaker';undo.textContent='撤销字幕修订';undo.addEventListener('click',()=>{state.session.captionReviews[c.id]={...c.captionReview,status:'dismissed',text:c.original||c.text};scheduleSave();render();});item.appendChild(undo);}
+        if(c.captionReview?.status==='applied'){const undo=document.createElement('button');undo.className='speaker';undo.textContent='撤销字幕修订';undo.addEventListener('click',()=>{state.session.captionReviews[c.id]={...c.captionReview,status:'dismissed',text:c.original||c.text};invalidateLive();scheduleSave();render();});item.appendChild(undo);}
         const notes=[c.reviewReason,c.textError,c.speakerReason,c.captionReview?.reason].filter(Boolean);
         if(notes.length){const note=document.createElement('p');note.textContent=notes.join('；');item.appendChild(note);}
         if(c.id){const edit=document.createElement('button');edit.className='speaker';edit.textContent=c.manuallyEdited?'编辑人工修订':'核对 / 修订';edit.addEventListener('click',()=>correctText(c));item.appendChild(edit);
-          if(c.manuallyEdited){const reset=document.createElement('button');reset.className='speaker';reset.textContent='撤销修订';reset.addEventListener('click',()=>{if(!confirm('撤销这条人工修订，恢复机器记录？原始识别不变。'))return;delete state.session.textOverrides[c.id];scheduleSave();render();});item.appendChild(reset);}}
+          if(c.manuallyEdited){const reset=document.createElement('button');reset.className='speaker';reset.textContent='撤销修订';reset.addEventListener('click',()=>{if(!confirm('撤销这条人工修订，恢复机器记录？原始识别不变。'))return;delete state.session.textOverrides[c.id];invalidateLive();scheduleSave();render();});item.appendChild(reset);}}
         d.appendChild(item);
       }
-      div.appendChild(d);el.appendChild(div);
+      };
+      d.addEventListener('toggle',()=>{if(d.open)populateSources();});
+      if(d.open)populateSources();
+      div.appendChild(d);batch.appendChild(div);
     }
-    $('vkn-load-more').hidden=turns.length<=state.liveLimit;el.scrollTop=previousScroll;
+    el.appendChild(batch);
+    $('vkn-load-more').hidden=start===0&&turns.length<=state.liveLimit;el.scrollTop=previousScroll;
   }
 
   function correctText(cue){
@@ -405,7 +508,7 @@
     if(value===null)return;
     if(!value.trim()||value.trim().length>6000){state.lastError='修订不能为空，且不得超过6000字符。';render();return;}
     state.session.textOverrides ||= {};state.session.textOverrides[cue.id]={text:value.trim(),updatedAt:new Date().toISOString()};
-    state.tips='已保存人工修订，原始识别保留。旧摘要/结果未重写，请按需重新生成。';state.lastError='';scheduleSave();render();
+    state.tips='已保存人工修订，原始识别保留。旧摘要/结果未重写，请按需重新生成。';state.lastError='';invalidateLive();scheduleSave();render();
   }
   function renderSpeakers(){
     const el=$('vkn-speaker-list');el.replaceChildren();
@@ -427,7 +530,7 @@
     if(answer===null||!/^\d+$/.test(answer.trim()))return;
     const n=Number(answer);if(n<0||n>list.length)return;
     state.session.speakerOverrides ||= {};state.session.speakerOverrides[cue.id]=n?list[n-1].id:'';
-    scheduleSave();render();
+    invalidateLive(true);scheduleSave();render();
   }
   function jumpToReport(){
     state.open=true;$('vkn-panel').hidden=false;$('vkn-bubble').hidden=true;
@@ -520,8 +623,7 @@
     $('vkn-ai').disabled=state.working || !s || !(s.segments||[]).length;
     $('vkn-ai').textContent=state.working?'生成中…':'生成整理';
     for(const id of ['vkn-mode','vkn-instructions','vkn-creative','vkn-range-start','vkn-range-end','vkn-context-review'])$(id).disabled=state.working;
-    $('vkn-task-progress').hidden=!state.working;
-    $('vkn-task-progress').textContent=state.progress?`${state.progress.phase||'整理正文'}：第 ${state.progress.index} / ${state.progress.total} 批`:'正在连接模型…';
+    renderTaskProgress();
     const ac=state.settings;
     $('vkn-ai-config-hint').textContent=ac.configured?
       `深度整理 ${ac.version||''}：${ac.provider==='ollama'?'本地 Ollama':'自定义接口'} / ${ac.model||''} · ${ac.saved?'使用已保存的摘要配置':'复用本地默认 / 听写文字模型'}`:
@@ -540,8 +642,17 @@
     else if(state.stopRequested||!state.active)showStatus('已停止采集 · 已有记录保留。');
     else if(s.segments.length)showStatus('已记录 '+s.segments.length+' 条，可选择方式生成整理。','ok');
     else showStatus('先启动本地服务，再开始听写；或在更多工具中导入字幕。');
-    const q=C.qualityCounts(C.cuesWithSpeakers(s));
-    $('vkn-live-count').textContent=s.segments.length+'条'+(q.review?' · '+q.review+'条待核对':'')+($('vkn-transcript').open?'':' · 点击展开');
+    const revision=state.liveRevision;
+    if(!state.qualityCache||state.qualityCache.revision!==revision){
+      const q=C.qualityCounts(s.segments);
+      for(const id of Object.keys(s.textOverrides||{})){
+        const idx=state.cueIndex?.get(id),c=idx===undefined?s.segments.find(x=>x.id===id):s.segments[idx];
+        if(c&&!c.manuallyEdited){q.manual++;if(C.cueNeedsReview(c))q.review--;}
+      }
+      state.qualityCache={revision,value:q};
+    }
+    const q=state.qualityCache.value;
+    $('vkn-live-count').textContent=s.segments.length+'条'+(q.review?' · '+q.review+'条无法自动确认':'')+($('vkn-transcript').open?'':' · 点击展开');
     renderCaptionStatus();
     if(!state.open)return;
     renderLive();
@@ -562,8 +673,8 @@
   }
   function updateWritingHint(){
     const o=formWriting();
-    const hints={knowledge:'提炼概念、要点和依据，保留来源。',script:'按场景与角色组织对白，不凭空补画面。',novel:'连贯叙事与对白；默认不新增剧情。',transcript:'外语发言自动翻译为简体中文，按说话人整理标点和段落；原始听写保留，不做摘要。',custom:'填写你的要求，再生成对应的正文。'};
-    $('vkn-mode-hint').textContent=hints[o.mode];$('vkn-creative-label').hidden=!['novel','custom'].includes(o.mode);
+    const hints={knowledge:'提炼概念、要点和依据，保留来源。',transcript:'外语发言自动翻译为简体中文，按说话人整理标点和段落；原始听写保留，不做摘要。',custom:'填写你的要求，再生成对应的正文。'};
+    $('vkn-mode-hint').textContent=hints[o.mode];$('vkn-creative-label').hidden=o.mode!=='custom';
     $('vkn-request-count').textContent=o.instructions.trim()?'已填写':o.mode==='custom'?'请填写':'可选';
   }
   function rememberWriting(){
@@ -577,7 +688,7 @@
     if(picker.dataset.signature!==signature){
       picker.replaceChildren();
       for(let i=docs.length-1;i>=0;i--){const x=docs[i],option=document.createElement('option');option.value=x.id;
-        option.textContent=C.WRITING_MODES[x.mode]+(x.options.creative?' · 改写':'')+' · '+(x.createdAt?new Date(x.createdAt).toLocaleString('zh-CN'):'旧版结果')+' · #'+(i+1);picker.appendChild(option);}
+        option.textContent=C.writingModeTitle(x.mode)+(x.options.creative?' · 改写':'')+' · '+(x.createdAt?new Date(x.createdAt).toLocaleString('zh-CN'):'旧版结果')+' · #'+(i+1);picker.appendChild(option);}
       picker.dataset.signature=signature;
     }
     picker.hidden=docs.length<2;if(d)picker.value=d.id;
@@ -589,7 +700,7 @@
     }
     $('vkn-result-details').hidden=!d;
     const audit=$('vkn-result-audit');if(audit.dataset.signature!==signature2){audit.innerHTML=d?C.markdownToSafeHtml(C.resultAuditMarkdown(d)):'';audit.dataset.signature=signature2;}
-    $('vkn-generated').textContent=d?C.WRITING_MODES[d.mode]+(d.options.creative?' · 创作改写':' · 忠实整理'):'尚未生成';
+    $('vkn-generated').textContent=d?C.writingModeTitle(d.mode)+(d.options.creative?' · 创作改写':' · 忠实整理'):'尚未生成';
     const fresh=d?Math.max(0,(s?.segments?.length||0)-d.totalAtGeneration):0;
     $('vkn-report-hint').textContent=d?(d.legacy?'已保留旧版结果；范围请参照正文。':`本次使用 ${d.cueCount} 条记录 · ${C.formatTime(d.start)}–${C.formatTime(d.end)}。`)+(fresh?` 新增 ${fresh} 条未纳入本次结果。`:'')+(d.markdown.length>26000?' 预览只显示前26000字符，完整阅读 / 导出可看全部。':''):'听写或导入文字后，选择一种方式生成。';
   }
@@ -602,28 +713,39 @@
     if(C.documentHistory(captured).length>=100){state.lastError='本视频已有100份结果，请先导出备份，再另建视频笔记；旧结果不会被自动覆盖。';render();return;}
     captured.writing=writing;
     const requestId='deep-'+Date.now()+'-'+Math.random().toString(36).slice(2);state.aiRequestId=requestId;
-    state.working=true;state.progress=null;state.lastError='';render();
+    state.working=true;state.aiMode=writing.mode;state.progress=null;state.taskSaving=false;state.lastError='';render();
     try {
       await refreshSettings();if(state.aiRequestId!==requestId)return;
       if(!state.settings.configured)throw Error(state.settings.error||'AI_CONFIG_STATUS：请在设置页验证模型连接。');
-      const res=await call('VKN_AI_GENERATE',{requestId,sessionKey:captured.key,cues:snapshot,writing,meta:{title:captured.title,url:captured.url,captionObservations:captured.captionOptions?.enabled===false?[]:(CP?.cleanObservations(captured.captionObservations)||[])}});
+      let res=await call('VKN_AI_GENERATE',{requestId,sessionKey:captured.key,cues:snapshot,writing,meta:{title:captured.title,url:captured.url,captionObservations:captured.captionOptions?.enabled===false?[]:(CP?.cleanObservations(captured.captionObservations)||[])}});
+      let slices=0;
+      while(res?.continuing){
+        if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;
+        if(++slices>4000)throw Error('AI_STEP_LIMIT：处理批次超过安全上限；已保存检查点，请重新点击生成继续。');
+        // Retain the last actual model-request stage across worker slices.
+        // Return to the browser event loop between short MV3 worker jobs.
+        await new Promise(resolve=>setTimeout(resolve,0));
+        if(state.aiRequestId!==requestId)return;
+        res=await call('VKN_AI_GENERATE',{requestId,sessionKey:captured.key,resumeOnly:true});
+      }
       if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;
       for(const [id,review] of Object.entries(res.captionReviews||{})){
         const raw=state.session.segments.find(c=>c.id===id),old=state.session.captionReviews?.[id];
         if(!raw||review.source!==String(raw.original||raw.text)||old?.status==='dismissed'||state.session.textOverrides?.[id])continue;
         const clean=C.cleanCaptionReview(review);if(clean&&!(old?.status==='applied'&&clean.status==='agrees')){state.session.captionReviews||={};state.session.captionReviews[id]=clean;}
       }
+      state.taskSaving=true;renderTaskProgress();
       const doc=C.cleanDocument({id:'doc-'+requestId,sourceKey:captured.key,sourceUrl:captured.url,sourceTitle:captured.title,markdown:res.markdown,options:writing,createdAt:new Date().toISOString(),
         cueCount:res.cueCount??plan.cues.length,totalAtGeneration:snapshot.length,start:res.start??plan.from,end:res.end??plan.to,blocks:res.blocks,model:res.model||state.settings.model,audit:res.audit,phraseReview:res.phraseReview,screening:res.screening,reviewCount:res.reviewCount,manualCount:res.manualCount});
       if(!doc)throw Error('模型没有返回可保存的正文。');
       captured.documents=C.documentHistory(captured);captured.documents.push(doc);C.activateDocument(captured,doc.id);
       state.lastAiAt=Date.now();state.lastAiCount=captured.segments.length;
       const saved=await saveNow();if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId)return;state.tips=C.WRITING_MODES[writing.mode]+(saved?'已生成并保存，旧结果和原文保留。':'已生成，但自动保存失败，请立即导出备份。');
-      state.working=false;state.progress=null;render();jumpToReport();
+      state.working=false;state.taskSaving=false;state.progress=null;render();jumpToReport();
     }catch(e){
       if(state.session!==captured||getKey()!==captured.key||state.aiRequestId!==requestId||String(e.message).includes('AI_CANCELLED')){return;}
       state.lastError='生成失败：'+e.message+'。原始记录与旧结果保留。';
-    }finally{if(state.aiRequestId===requestId){state.aiRequestId=null;state.working=false;state.progress=null;}render();}
+    }finally{if(state.aiRequestId===requestId){state.aiRequestId=null;state.working=false;state.taskSaving=false;state.progress=null;}render();}
   }
   function downloadFile(text,mime,name){
     const blob=new Blob(['\uFEFF',text],{type:mime});const link=document.createElement('a');const href=URL.createObjectURL(blob);link.href=href;link.download=name;link.style.display='none';shadow.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(href),60000);
@@ -631,7 +753,7 @@
   function exportDoc(type){
     if(!currentSession()||!C.activeDocument(state.session))return;
     const ss=state.session,d=C.activeDocument(ss),data=type==='html'?C.resultHtml(ss):type==='txt'?C.resultText(ss):C.resultMarkdown(ss);
-    const name=(ss.title||'视频')+'_'+C.WRITING_MODES[d.mode]+(d.options.creative?'_改写':'')+'_'+d.id.slice(-8);
+    const name=(ss.title||'视频')+'_'+C.writingModeTitle(d.mode)+(d.options.creative?'_改写':'')+'_'+d.id.slice(-8);
     downloadFile(data,type==='html'?'text/html;charset=utf-8':type==='txt'?'text/plain;charset=utf-8':'text/markdown;charset=utf-8',
       C.makeFilename(name,type).replace('_知识笔记.','.'));
     $('vkn-export-menu').open=false;showStatus('当前整理结果已交给浏览器下载。','ok');
@@ -649,12 +771,12 @@
   }
   $('vkn-mode').addEventListener('change',()=>{
     if($('vkn-mode').value==='custom')$('vkn-requirements').open=true;
-    if(!['novel','custom'].includes($('vkn-mode').value))$('vkn-creative').checked=false;
+    if($('vkn-mode').value!=='custom')$('vkn-creative').checked=false;
     rememberWriting();render();
   });
   for(const id of ['vkn-instructions','vkn-creative','vkn-range-start','vkn-range-end'])$(id).addEventListener(id==='vkn-creative'?'change':'input',rememberWriting);
   for(const [id,key] of [['vkn-transcript','live'],['vkn-tools','tools'],['vkn-requirements','requirements']])$(id).addEventListener('toggle',()=>{
-    if(state.session){state.session.viewPreferences ||= {};state.session.viewPreferences[key]=$(id).open;scheduleSave();}
+    if(state.session){state.session.viewPreferences ||= {};state.session.viewPreferences[key]=$(id).open;scheduleSave();if(id==='vkn-transcript')renderLive();}
     render();
   });
   for(const id of ['vkn-stage-details','vkn-highlights-details'])$(id).addEventListener('toggle',render);
@@ -781,7 +903,7 @@
   $('vkn-ai').addEventListener('click',()=>runAi(false));
   $('vkn-ai-cancel').addEventListener('click',async()=>{
     const requestId=state.aiRequestId;if(!requestId)return;
-    state.aiRequestId=null;state.working=false;state.lastError='';state.tips='正在取消本次深度整理；已保存文档不变。';render();
+    state.aiRequestId=null;state.working=false;state.taskSaving=false;state.lastError='';state.tips='正在取消本次深度整理；已保存文档不变。';render();
     try{const result=await call('VKN_AI_CANCEL',{requestId});state.tips=result.message;}
     catch(e){state.lastError='取消确认失败：'+e.message+'。不会采用这一轮迟到的输出。';}
     render();
@@ -811,7 +933,12 @@
     scheduleSave();render();
   });
   chrome.runtime.onMessage.addListener((msg,sender,reply)=>{
-    if(msg?.type==='VKN_WRITING_PROGRESS'&&msg.requestId===state.aiRequestId){state.progress={index:msg.index,total:msg.total,phase:msg.phase||'整理正文'};render();reply({ok:true});}
+    if(msg?.type==='VKN_WRITING_PROGRESS'&&msg.requestId===state.aiRequestId){
+      state.progress=C.writingTaskProgress(state.progress,msg,state.aiMode);
+      // Do not re-render all stored cues, speakers and document previews on
+      // every status event. Only update the dedicated task panel.
+      renderTaskProgress();reply({ok:true});
+    }
     if(msg?.type==='VKN_TOGGLE'){setOpen(!state.open);reply({ok:true});}
     if(msg?.type==='VKN_OPEN'){setOpen(true);reply({ok:true});}
     if(msg?.type==='VKN_ASR_CONTEXT'){
@@ -828,7 +955,7 @@
       if(msg.error){state.lastError=msg.error;state.asrBusy=false;}
       if(msg.tabId)state.asrTabId=msg.tabId;
       if(state.asrRunning){state.active=true;state.asrNote=msg.message||'本地语音识别正在运行';}
-      render();reply({ok:true});
+      if(msg.kind!=='segment')render();reply({ok:true});
     }
     if(msg?.type==='VKN_ASR_EVENT'){
       if(!currentSession()||msg.sessionKey!==state.session.key){reply({ok:false,ignored:true});return;}
@@ -941,7 +1068,7 @@
       }
       ready.forEach(x=>caption.checks.set(x.cue.id,x.fingerprint));
       caption.message=data.phonetic_available?'已对齐同时间字幕；中文同音与英文拼写分别校验，原文保留。':'字幕已取得，英文拼写可独立核对；中文拼音组件未就绪，中文候选未自动采用。';
-      scheduleSave();render();
+      invalidateLive();scheduleSave();render();
     }catch(e){if(generation===caption.generation){caption.message='字幕核对暂缓：'+e.message+'。听写不受影响。';caption.nextFrame=Date.now()+30000;caption.nextCheck=Date.now()+30000;}}
     finally{caption.busy=false;renderCaptionStatus();}
   }

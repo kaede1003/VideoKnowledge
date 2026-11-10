@@ -417,7 +417,7 @@
         "AC-033"
       ],
       "deliverable": "V0.8.0源码、测试及升级说明",
-      "notes": "声音模型/真实双人样本需目标验收；不猜姓名或性别"
+      "notes": "声音模型/真实双人样本需目标验收；不猜姓名或性别 git-r29：已追加自报姓名确定性提取、邻句断句连贯性整理及整理模式精简；单元/浏览器专项通过，真实Windows/Edge/Ollama仍待验收。"
     },
     {
       "id": "VK-027",
@@ -515,7 +515,7 @@
         "AC-040"
       ],
       "deliverable": "V0.9.0扩展、回归测试、输出约定与升级说明",
-      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。"
+      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。 git-r29：已追加自报姓名确定性提取、邻句断句连贯性整理及整理模式精简；单元/浏览器专项通过，真实Windows/Edge/Ollama仍待验收。"
     },
     {
       "id": "VK-034",
@@ -529,7 +529,7 @@
         "AC-041"
       ],
       "deliverable": "V0.9.0扩展、回归测试、输出约定与升级说明",
-      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。"
+      "notes": "代码/构造测试已覆盖；原生Windows Edge与真实模型验收未完成。 git-r29：已追加自报姓名确定性提取、邻句断句连贯性整理及整理模式精简；单元/浏览器专项通过，真实Windows/Edge/Ollama仍待验收。"
     },
     {
       "id": "VK-035",
@@ -728,6 +728,181 @@
       ],
       "deliverable": "短文/长文文字稿独立翻译阶段、来源ID校验、失败保护及回归测试",
       "notes": "代码与模拟端到端测试完成；真实 Ollama/Qwen 翻译准确度、专名和语义保真仍按 AC-011 目标机/双语人工验收。"
+    },
+    {
+      "id": "VK-056",
+      "priority": "P0",
+      "title": "一小时以上转写界面增量渲染与分批持久化",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-005"
+      ],
+      "acceptance": [
+        "AC-058"
+      ],
+      "deliverable": "可见窗口摘录、增量ID合并、同步UI节流、流式写入与浏览器测试",
+      "notes": "构造/DOM测试完成；真实Edge一小时以上稳定性与内存/交互延迟仍待目标机验收"
+    },
+    {
+      "id": "VK-057",
+      "priority": "P0",
+      "title": "两小时知识主题整理分批自动续跑与分片检查点",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-004",
+        "VK-005",
+        "VK-006"
+      ],
+      "acceptance": [
+        "AC-059"
+      ],
+      "deliverable": "短消息自动继续、原位迁移r19检查点、逐块持久化、保留来源的有界主题整合、故障回归",
+      "notes": "合成2小时模型响应与续跑已覆盖，不能宣称真实Ollama和浏览器生命周期已完全通过；仍须目标机实测"
+    },
+    {
+      "id": "VK-058",
+      "priority": "P1",
+      "title": "内容角色自动命名与低风险审核自动决策",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-016"
+      ],
+      "acceptance": [
+        "AC-060"
+      ],
+      "deliverable": "综合多轮对话的证据角色名称、显示自动更新、技术提示与高风险翻译区分",
+      "notes": "自动化测试通过；真实声纹混合/多角色名字、语义事实核验仍需真实样本抽查。不能臆造姓名或掩盖否定和数字风险。"
+    },
+    {
+      "id": "VK-059",
+      "priority": "P0",
+      "title": "修复长文 AI_HTTP_403 错误归因并用相同流式请求验证服务",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-057"
+      ],
+      "acceptance": [
+        "AC-061"
+      ],
+      "deliverable": "普通/流式双通道检测、401/403/413/429/5xx 归因、可恢复检查点",
+      "notes": "构造测试验证；真实服务拒绝原因及目标 Windows 两小时生成仍待现场验收，不绕过来源安全与服务授权"
+    },
+    {
+      "id": "VK-060",
+      "priority": "P0",
+      "title": "两小时知识长文反复触发输出长度截断：按原始来源自适应分段、合并并安全续跑",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-057",
+        "VK-059"
+      ],
+      "acceptance": [
+        "AC-062"
+      ],
+      "deliverable": "自适应来源拆分、分片检查点、持续截断时的原文保底及质量说明，含2小时模拟回归",
+      "notes": "代码层可处理 finish_reason=length 的无终点续写和 HTTP413；没有真实Windows Ollama两小时模型质量验收，不标done。保留现有r21检查点与原始记录。"
+    },
+    {
+      "id": "VK-061",
+      "priority": "P1",
+      "title": "长视频整理固定进度条、批次回放去重与 Edge 工具栏任务状态",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-006",
+        "VK-057"
+      ],
+      "acceptance": [
+        "AC-063"
+      ],
+      "deliverable": "模型请求起点进度事件、当前阶段/多轮进度条、视频标题、增量 DOM、Edge tab角标、取消清理与构造/DOM回归",
+      "notes": "长文重入旧检查点不再重播批次，构造与Chromium DOM测试通过；不能虚构全任务百分比或ETA，Windows原生Edge与真实两小时视频仍待验收。托盘常驻不在本轮范围。"
+    },
+    {
+      "id": "VK-062",
+      "priority": "P0",
+      "title": "修复文字稿部分翻译缺项失败并保留可恢复的逐行检查点",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-058",
+        "VK-061"
+      ],
+      "acceptance": [
+        "AC-064"
+      ],
+      "deliverable": "短文与长文按源ID局部补译、长文分片持久化、有限错误重试、回归测试",
+      "notes": "模拟模型部分缺项/数字冲突/HTTP500后续跑成功；真实目标 Windows Edge/Ollama 两小时外语视频翻译内容仍待验收，不自动放行未完成译文。"
+    },
+    {
+      "id": "VK-063",
+      "priority": "P0",
+      "title": "外语文字稿连续漏译时自动缩小翻译、单条直译与无需人工审核的保底成稿",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-062"
+      ],
+      "acceptance": [
+        "AC-065"
+      ],
+      "deliverable": "新策略版本检查点、逐条无JSON翻译回退、保留原文的自动完成及真实错误透传、短/长视频回归",
+      "notes": "可恢复的模拟端到端与重试覆盖；无法翻译的局部仍保留外语原文并在详情中注明，不应称为全部译完；Windows Edge + Ollama真实视频质量待测。"
+    },
+    {
+      "id": "VK-064",
+      "priority": "P0",
+      "title": "修复外语文字稿西班牙语与中文错拼、漏译误判及旧检查点复用",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-063"
+      ],
+      "acceptance": [
+        "AC-066"
+      ],
+      "deliverable": "检测长段外语残留及明显漏译，回到原始听写整句自动补译，升级翻译缓存版本并使不匹配的断句缓存重算；保留既有原始资料、自动回退及低风险无人审核",
+      "notes": "用户截图中的Sergio Marina混合语言问题已以构造回归复现并完成修复；真实Windows+Edge+Ollama译文质量待现场验收。"
+    },
+    {
+      "id": "VK-065",
+      "priority": "P0",
+      "title": "修复西班牙语未译保底、极短碎句归属和访谈嘉宾姓名自动关联",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-064"
+      ],
+      "acceptance": [
+        "AC-067"
+      ],
+      "deliverable": "原文长句缺译时有界短语段译文补全与检查点续跑，未译原文明确标注；自然短句合并、临近职业履历介绍与不同声纹应答绑定推测嘉宾姓名；短视频和长视频文本路径统一",
+      "notes": "截图同类混排、孤立“我们”、Sergio Marina介绍已构造复现；单元/模拟浏览器可验证实现，真实 Windows Edge/Ollama 与声纹准确性需现场验收，不将介绍者误标为受访者。"
+    },
+    {
+      "id": "VK-066",
+      "priority": "P0",
+      "title": "修复长文 AI_STREAM_INCOMPLETE 流式终止识别与本机有界恢复",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-057",
+        "VK-060"
+      ],
+      "acceptance": [
+        "AC-068"
+      ],
+      "deliverable": "SSE结束帧与分包校验，缺失终止时本机同模型一次非流式恢复，保留检查点，连接验证不误报，并覆盖模拟断流/续跑",
+      "notes": "已使用合成流和中断/恢复测试验证源码机制；本地真实 Ollama runner 异常根因、Windows Edge 与两小时视频仍未现场核验，不标done。"
+    },
+    {
+      "id": "VK-067",
+      "priority": "P0",
+      "title": "直接对话称呼自动关联主持人与嘉宾姓名，隐藏解释尾注并防止内部翻译提示泄漏",
+      "status": "in_progress",
+      "depends_on": [
+        "VK-065",
+        "VK-066"
+      ],
+      "acceptance": [
+        "AC-069"
+      ],
+      "deliverable": "短长文字稿共用直接称呼姓名映射；保留姓名依据、歧义安全跳过；显示姓名无推测尾注；翻译内部指令回显自动拒绝与旧缓存重验",
+      "notes": "构造访谈、翻译提示词回显、存储、短文生成测试已通过；真实 Windows Edge/Ollama、2小时视频及声纹准确率待验收。"
     }
   ]
 }

@@ -14,6 +14,16 @@ import httpx
 
 NUMBERS=re.compile(r'\d+(?:[.,]\d+)*%?')
 HAN=re.compile(r'[\u3400-\u9fff]')
+# Timing information and optional correction suggestions are provenance metadata,
+# not indications that the transcribed words are wrong.
+INFORMATIONAL_FLAGS=frozenset({'word_timestamps_missing','correction_suggestion','correction_unavailable'})
+
+def unresolved_source_risk(item):
+    if not item.get('needsReview'):
+        return False
+    flags=item.get('qualityFlags') or []
+    return not flags or any(flag not in INFORMATIONAL_FLAGS for flag in flags)
+
 EN_NEG=re.compile(r"\b(?:not|never|no|none|nothing|nobody|neither|without|cannot)\b|\b\w+n['’]t\b",re.I)
 ZH_NEG=re.compile(r'不|没|未|无|勿|别|非|莫|禁|拒|缺乏|无法|不得')
 EN_MODAL=re.compile(r'\b(?:might|may|could|possibly|perhaps|probably|likely|seems?|appears?)\b',re.I)
@@ -114,7 +124,29 @@ class LocalTextEnricher:
             candidate=candidate.strip()
             if len(candidate)>max(400,len(raw)*8):raise ValueError('译文长度异常，原文保留')
             warnings=translation_warnings(raw,candidate,language)
-            if item.get('needsReview'):warnings.append('识别原文已有疑点，译文不能作为已核实内容')
+            # The model can correct its own translation when lexical guards find
+            # an apparent negation/number/modality problem. Try at most once;
+            # never promote a candidate that still fails the same checks.
+            repairable=any(not w.startswith('原文是短片段') for w in warnings)
+            if warnings and repairable:
+                try:
+                    repaired=await self._ask(opts['textModel'],common+
+                        'Revise the Chinese translation, not the source transcript. '
+                        'Pay special attention to numbers, negation, comparison, modality and units. '
+                        'Preserve all original Arabic numerals; do not add any facts. '
+                        'Return JSON with chinese_text only.',
+                        {**reference,'previous_translation':candidate,'validation_warnings':warnings},schema)
+                    revised=repaired.get('chinese_text','')
+                    if isinstance(revised,str):
+                        new_warnings=translation_warnings(raw,revised,language)
+                        if len(new_warnings)<len(warnings):
+                            candidate=revised.strip();warnings=new_warnings
+                except (httpx.HTTPError,ValueError,KeyError,TypeError,IndexError):
+                    # Auxiliary repair failure cannot erase the first attempt.
+                    pass
+            source_risk=unresolved_source_risk(item)
+            if source_risk:
+                warnings.append('原始语音识别仍有不确定性；仅凭文字模型不能确认原音')
             item['translation']=candidate
             item['translationStatus']='needs_review' if warnings else 'done'
             item['text']=raw if warnings else candidate
@@ -142,7 +174,11 @@ class LocalTextEnricher:
                 item['correctionStatus']='failed'
                 notes.append('可选纠错失败，原文及已生成译文保留：'+str(exc)[:100])
                 flags.append('correction_unavailable')
-        item['needsReview']=bool(item.get('needsReview') or flags or notes)
+        # Do not turn every informational model note into an obligatory manual
+        # approval. Substantive unresolved risks remain visible and auditable.
+        item['needsReview']=bool(unresolved_source_risk(item) or
+            item.get('translationStatus')=='needs_review' or item.get('textError') or
+            any(f not in INFORMATIONAL_FLAGS for f in flags))
         item['qualityFlags']=list(dict.fromkeys(flags))
         item['reviewReason']='；'.join(dict.fromkeys(notes))[:2400]
         item['verificationStatus']='machine_unverified'

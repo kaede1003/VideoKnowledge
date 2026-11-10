@@ -79,6 +79,9 @@ test('Ollama not running is distinguished from missing config and ASR 8765',asyn
 test('test endpoint executes inference, not just model-list discovery',async()=>{
  const h=makeHarness();const r=await h.send({type:'VKN_AI_TEST'});assert.ok(r.ok);assert.equal(r.data.verified,true);
  const post=JSON.parse(h.requests[1].opts.body);assert.equal(post.max_tokens,32);assert.equal(post.messages[1].content,'只回复：连接正常。');
+ assert.equal(r.data.longformVerified,true);
+ const streamed=JSON.parse(h.requests[2].opts.body);assert.equal(streamed.stream,true);assert.equal(streamed.max_tokens,48);
+ assert.equal(streamed.messages[1].content,'只回复：长文接口正常。');
 });
 test('empty model output is not reported as verification success',async()=>{
  const h=makeHarness({fetch:async(url)=>new Response(JSON.stringify(url.endsWith('/api/tags')?{models:[{name:'qwen2.5:3b'}]}:{choices:[]}))});

@@ -59,15 +59,15 @@ try:
     assert generate()['ok'];assert rpc({'op':'requests'})[-1]['body']['model']=='qwen2.5:7b'
     print('PASS save speech only -> deep summary uses saved local text model',flush=True)
     # One click saves and verifies via production background, not an independent fake test function.
-    page.locator('#useLocal').click();expect(page.locator('#status')).to_contain_text('后台短文本推理验证通过')
+    page.locator('#useLocal').click();expect(page.locator('#status')).to_contain_text('普通聊天及长文请求通道均已验证通过')
     config=rpc({'op':'get','key':'vknAiConfig'})['vknAiConfig']
     assert config['model']=='qwen2.5:7b' and config['provider']=='ollama'
-    assert rpc({'op':'requests'})[-1]['body']['max_tokens']==32
+    assert rpc({'op':'requests'})[-2]['body']['max_tokens']==32 and rpc({'op':'requests'})[-1]['body']['stream'] is True
     print('PASS one-click local repair -> persisted readback -> shared short inference',flush=True)
     page.locator('#model').fill('qwen2.5:3b')
     expect(page.locator('#summarySaveState')).to_contain_text('未保存')
     assert rpc({'op':'get','key':'vknAiConfig'})['vknAiConfig']['model']=='qwen2.5:7b'
-    page.locator('#test').click();expect(page.locator('#status')).to_contain_text('后台短文本推理验证通过')
+    page.locator('#test').click();expect(page.locator('#status')).to_contain_text('普通聊天及长文请求通道均已验证通过')
     assert rpc({'op':'get','key':'vknAiConfig'})['vknAiConfig']['model']=='qwen2.5:3b'
     assert rpc({'op':'requests'})[-1]['body']['model']=='qwen2.5:3b'
     print('PASS edited draft is not silently used; Save+Verify stores and uses the new value',flush=True)

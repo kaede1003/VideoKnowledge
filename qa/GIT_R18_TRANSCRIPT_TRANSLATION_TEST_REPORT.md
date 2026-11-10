@@ -1,7 +1,7 @@
 # git-r18 外语文字稿翻译回归测试报告
 
-**日期：** 2026-11-09  
-**工程版本：** VideoKnowledge 0.12.1 / git-r18-transcript-translation  
+**日期：** 2026-11-09
+**工程版本：** VideoKnowledge 0.12.1 / git-r18-transcript-translation
 **测试环境：** Linux，Python 3.13.5，Node.js 22.16.0；模拟扩展消息、模拟模型响应。
 
 ## 覆盖范围
@@ -26,7 +26,7 @@
 | Python 单元测试 | **379 / 379 PASS** |
 | 总体 | **PASS** |
 
-定向 JavaScript 命令：`node --test tests/transcript_translation_v0123.test.js tests/longform_v0120.test.js` — 11 / 11 PASS。  
+定向 JavaScript 命令：`node --test tests/transcript_translation_v0123.test.js tests/longform_v0120.test.js` — 11 / 11 PASS。
 浏览器 DOM 定向命令：`python tests/browser_presentation_v090.py` — PASS；完整浏览器运行中 `browser_writing_v070` 的首轮检查已通过。随后单独重跑浏览器脚本时，Playwright 管道出现 `EPIPE` 并超时，因此不把完整浏览器套件标记为通过。
 
 ## 未验证事项

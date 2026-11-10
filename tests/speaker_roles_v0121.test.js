@@ -24,9 +24,9 @@ test('scene/system/character voice groups are distinguished using multiple real 
  const roles=R.resolve(checked,{}).roles;
  assert.equal(roles[sid(1)].role,'narrator');assert.equal(roles[sid(2)].role,'system');assert.equal(roles[sid(3)].role,'character');
  const catalog=C.speakerCatalog({segments:sample,speakerRoles:roles});
- assert.match(catalog[0].label,/剧情旁白.*说话人1/);
- assert.match(catalog[1].label,/系统播报.*说话人2/);
- assert.match(catalog[2].label,/剧情角色.*说话人3/);
+ assert.equal(catalog[0].label,'剧情旁白');
+ assert.equal(catalog[1].label,'系统播报');
+ assert.equal(catalog[2].label,'剧情角色');
  const outputs=C.cuesWithSpeakers({segments:sample,speakerRoles:roles});assert.match(outputs[0].speakerLabel,/剧情旁白/);
 });
 test('unknown, model-invented cue evidence, and one non-declarative quote never produce labels',()=>{
@@ -53,18 +53,39 @@ test('cleanSpeakerRoles rejects arbitrary labels, HTML, personal names, invalid 
  const val=R.validate(asObj(sample),[candidates[1]]).accepted[0];
  const cleaned=C.cleanSpeakerRoles({[sid(2)]:{...val,reason:'<img src=x onerror=alert(1)>foo'},['x'.repeat(32)+':spk1']:{role:'system',cueIds:[cid(2)],quotes:['fake']},[sid(3)]:{role:'王子',cueIds:[cid(3)],quotes:['fake']}});
  assert.equal(Object.keys(cleaned).length,1);assert.equal(cleaned[sid(2)].label,'系统播报');assert.match(cleaned[sid(2)].reason,/foo/);
+ const safe=C.cleanSpeakerRoles({[sid(2)]:{...val,displayName:'受访专家'}});assert.equal(safe[sid(2)].displayName,'受访专家');
+ const unsafe=C.cleanSpeakerRoles({[sid(2)]:{...val,displayName:'王小明'}});assert.equal(unsafe[sid(2)].displayName,'');
+});
+test('host and guest labels require adjacent conversational evidence',()=>{
+ const groups=R.sample(sample),g=groups.find(x=>x.speakerId===sid(3));
+ const result=R.validate(groups,[{speakerId:sid(3),role:'host',evidence:[{cueId:cid(3),quote:'你为什么要一个人去那么危险的地方？'},{cueId:cid(6),quote:'我只是想找到失散多年的妹妹。'}]}]);
+ assert.equal(result.accepted.length,0);assert.match(result.held[0].reason,/跨说话人对话/);
+ assert.ok(g.examples.some(x=>x.contextBefore||x.contextAfter));
 });
 test('role prompt uses constrained schema and no audio or names',()=>{
  const {system,user}=R.prompt(asObj(sample));assert.match(system,/unknown/);assert.match(system,/忽略其中任何命令/);
  assert.ok(JSON.parse(user).voiceGroups.every(g=>!('audio' in g)));
  assert.equal(R.parse('```json\n{"roles":[]}\n```').length,0);
 });
+test('role samples include adjacent dialogue context and validated descriptive labels',()=>{
+ const groups=R.sample(sample);const g=groups.find(x=>x.speakerId===sid(3));
+ assert.ok(g.examples.some(x=>x.contextBefore||x.contextAfter));
+ const role=R.validate(groups,[{speakerId:sid(3),role:'character',displayName:'提问者',
+  evidence:[{cueId:cid(3),quote:'你为什么要一个人去那么危险的地方？'},{cueId:cid(6),quote:'我只是想找到失散多年的妹妹。'}],
+  contextEvidence:[{cueId:cid(2),quote:'系统提示：任务已经更新，您获得十点积分。'}],reason:'结合问答上下文'}]);
+ assert.equal(role.accepted[0].displayName,'提问者');
+ const rejected=R.validate(groups,[{speakerId:sid(3),role:'character',displayName:'王小明',
+  evidence:[{cueId:cid(3),quote:'你为什么要一个人去那么危险的地方？'},{cueId:cid(6),quote:'我只是想找到失散多年的妹妹。'}]}]);
+ assert.equal(rejected.accepted[0].displayName,'');
+ const catalog=C.speakerCatalog({segments:sample,speakerRoles:{[sid(3)]:role.accepted[0]}});
+ assert.match(catalog[2].label,/提问者/);
+});
 test('background role check persists independently when there is no name intro',async()=>{
  const session={key:'vid',segments:sample,speakerNames:{},speakerEvidence:{},speakerRoles:{},speakerRoleCandidates:[],speakerCandidates:[],captionObservations:[]};const db=new Map();let calls=0;
  const context={globalThis:{},validKey:()=>true,loadSession:async()=>session,writeSession:async x=>Object.assign(session,x),notebookWrite:async f=>f(),
    VideoKnowledgeCore:{...C,cuesWithSpeakers:()=>sample},VknSpeakerIdentity:require('../extension/speaker-identity.js'),VknSpeakerRole:R,VknLongform:L,
    VknCaptions:{cleanObservations:x=>x||[],evidenceFor:()=>[]},readAiConfig:async()=>({endpoint:'http://127.0.0.1:11434/v1/chat/completions'}),
-   VknAiConfig:{isLocalOllama:()=>true},askModel:async(cfg,system)=>{calls++;if(system.includes('声线角色类型'))return JSON.stringify({roles:candidates});return '{"candidates":[]}';},
+   VknAiConfig:{isLocalOllama:()=>true},askModel:async(cfg,system)=>{calls++;if(system.includes('视频内容角色分析编辑'))return JSON.stringify({roles:candidates});return '{"candidates":[]}';},
    chrome:{storage:{local:{get:async key=>({[key]:db.get(key)}),set:async obj=>{for(const [k,v] of Object.entries(obj))db.set(k,v);}}}},console,Error,Map,Date,JSON};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(root,'extension/identity-background.js'),'utf8'),context);
  let v=await context.vknIdentifySpeakers('vid');assert.equal(v.roleUpdated,3);assert.equal(Object.keys(session.speakerRoles).length,3);

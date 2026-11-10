@@ -1,11 +1,11 @@
 {
   "repository": "video-knowledge-notebook",
-  "bundle_revision": "git-r18-transcript-translation",
-  "packaged_on": "2026-11-09",
+  "bundle_revision": "git-r29-sentence-self-intro-modes",
+  "packaged_on": "2026-11-10",
   "extension": "0.12.1",
   "server": "0.12.1",
   "audio_protocol": 5,
-  "stage": "foreign-language-transcript-translation-before-punctuation; source-and-speaker-preserving",
+  "stage": "transcript-sentence-flow-context; explicit-self-introduction; three-writing-modes",
   "runtime_changed_in_this_bundle": false,
   "baseline_archive": "VideoKnowledge_Edge_v0.7.2_FULL.zip",
   "baseline_sha256": "7fb007d5284d6f9387ba2c7b9cb8d7e0b1306a02cb57a64150162cdc1c4ef21d",
@@ -17,5 +17,7 @@
   "previous_archive": "VideoKnowledge_Git_Project_v0.10.2_git-r7.zip",
   "previous_sha256": "78b0bf0d8fc3996ba5626f127d5e41b2a3d406b4b085402481f69fec09946f79",
   "optional_speaker_runtime": "sherpa-onnx==1.13.8",
-  "minimum_safe_speaker_runtime": "1.13.1"
+  "minimum_safe_speaker_runtime": "1.13.1",
+  "previous_bundle_archive": "VideoKnowledge_r28_FULL_PROJECT_DIALOGUE_NAMES.zip",
+  "previous_bundle_sha256": "c25bd733452b44355a7657800143a3f70637d82722918a2c6342c5a84923d7dd"
 }

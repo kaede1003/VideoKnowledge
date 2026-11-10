@@ -54,7 +54,7 @@ try:
       reviewReason:'测试数据：英文否定可能漏译',verificationStatus:'machine_unverified',qualityFlags:['translation_suspect']};
       for(const f of window.__listeners)f({type:'VKN_ASR_EVENT',sessionKey:'web:'+location.origin+location.pathname,kind:'segment',data:c},{},()=>{});
     };window.emitQuality();}""")
-    expect(page.locator('#vkn-live-count')).to_contain_text('1条待核对')
+    expect(page.locator('#vkn-live-count')).to_contain_text('1条无法自动确认')
     assert not page.locator('#vkn-transcript').evaluate('(e)=>e.open')
     page.locator('#vkn-transcript > summary').click()
     expect(page.locator('#vkn-live .note > p')).to_contain_text('It is not certain.')
